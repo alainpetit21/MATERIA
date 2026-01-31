@@ -1,0 +1,316 @@
+// ==================== THEME SYSTEM ====================
+
+const themes = {
+    'dark-midnight-violet': {
+        name: 'dark-midnight-violet',
+        displayName: 'Dark Midnight Violet',
+        colors: {
+            background: 'oklch(0.15 0.04 280)',
+            foreground: 'oklch(0.95 0.02 280)',
+            card: 'oklch(0.20 0.05 280)',
+            cardForeground: 'oklch(0.95 0.02 280)',
+            popover: 'oklch(0.18 0.05 280)',
+            popoverForeground: 'oklch(0.95 0.02 280)',
+            primary: 'oklch(0.55 0.25 285)',
+            primaryForeground: 'oklch(0.98 0.01 280)',
+            secondary: 'oklch(0.25 0.05 280)',
+            secondaryForeground: 'oklch(0.95 0.02 280)',
+            muted: 'oklch(0.22 0.04 280)',
+            mutedForeground: 'oklch(0.60 0.03 280)',
+            accent: 'oklch(0.65 0.28 290)',
+            accentForeground: 'oklch(0.98 0.01 280)',
+            destructive: 'oklch(0.55 0.22 25)',
+            destructiveForeground: 'oklch(0.98 0.01 280)',
+            border: 'oklch(0.30 0.05 280)',
+            input: 'oklch(0.30 0.05 280)',
+            ring: 'oklch(0.55 0.25 285)',
+        },
+    },
+    'electric-blue': {
+        name: 'electric-blue',
+        displayName: 'Electric Blue',
+        colors: {
+            background: 'oklch(0.98 0.01 250)',
+            foreground: 'oklch(0.20 0.02 250)',
+            card: 'oklch(0.96 0.01 250)',
+            cardForeground: 'oklch(0.30 0.02 250)',
+            popover: 'oklch(0.98 0.01 250)',
+            popoverForeground: 'oklch(0.20 0.02 250)',
+            primary: 'oklch(0.45 0.22 250)',
+            primaryForeground: 'oklch(1 0 0)',
+            secondary: 'oklch(0.92 0.02 250)',
+            secondaryForeground: 'oklch(0.20 0.02 250)',
+            muted: 'oklch(0.94 0.01 250)',
+            mutedForeground: 'oklch(0.50 0.02 250)',
+            accent: 'oklch(0.85 0.20 130)',
+            accentForeground: 'oklch(0.25 0.02 250)',
+            destructive: 'oklch(0.55 0.22 25)',
+            destructiveForeground: 'oklch(1 0 0)',
+            border: 'oklch(0.88 0.02 250)',
+            input: 'oklch(0.88 0.02 250)',
+            ring: 'oklch(0.45 0.22 250)',
+        },
+    },
+    'sunset-orange': {
+        name: 'sunset-orange',
+        displayName: 'Sunset Orange',
+        colors: {
+            background: 'oklch(0.97 0.02 60)',
+            foreground: 'oklch(0.25 0.03 40)',
+            card: 'oklch(0.95 0.02 60)',
+            cardForeground: 'oklch(0.30 0.03 40)',
+            popover: 'oklch(0.97 0.02 60)',
+            popoverForeground: 'oklch(0.25 0.03 40)',
+            primary: 'oklch(0.55 0.22 35)',
+            primaryForeground: 'oklch(0.98 0.01 60)',
+            secondary: 'oklch(0.90 0.03 60)',
+            secondaryForeground: 'oklch(0.25 0.03 40)',
+            muted: 'oklch(0.92 0.02 60)',
+            mutedForeground: 'oklch(0.50 0.03 40)',
+            accent: 'oklch(0.70 0.25 55)',
+            accentForeground: 'oklch(0.98 0.01 60)',
+            destructive: 'oklch(0.55 0.22 25)',
+            destructiveForeground: 'oklch(0.98 0.01 60)',
+            border: 'oklch(0.85 0.03 60)',
+            input: 'oklch(0.85 0.03 60)',
+            ring: 'oklch(0.55 0.22 35)',
+        },
+    },
+    'forest-green': {
+        name: 'forest-green',
+        displayName: 'Forest Green',
+        colors: {
+            background: 'oklch(0.96 0.02 150)',
+            foreground: 'oklch(0.25 0.03 150)',
+            card: 'oklch(0.94 0.02 150)',
+            cardForeground: 'oklch(0.30 0.03 150)',
+            popover: 'oklch(0.96 0.02 150)',
+            popoverForeground: 'oklch(0.25 0.03 150)',
+            primary: 'oklch(0.45 0.18 155)',
+            primaryForeground: 'oklch(0.98 0.01 150)',
+            secondary: 'oklch(0.88 0.03 150)',
+            secondaryForeground: 'oklch(0.25 0.03 150)',
+            muted: 'oklch(0.90 0.02 150)',
+            mutedForeground: 'oklch(0.50 0.03 150)',
+            accent: 'oklch(0.75 0.22 145)',
+            accentForeground: 'oklch(0.98 0.01 150)',
+            destructive: 'oklch(0.55 0.22 25)',
+            destructiveForeground: 'oklch(0.98 0.01 150)',
+            border: 'oklch(0.82 0.03 150)',
+            input: 'oklch(0.82 0.03 150)',
+            ring: 'oklch(0.45 0.18 155)',
+        },
+    },
+    'crimson-red': {
+        name: 'crimson-red',
+        displayName: 'Crimson Red',
+        colors: {
+            background: 'oklch(0.16 0.04 20)',
+            foreground: 'oklch(0.95 0.02 20)',
+            card: 'oklch(0.22 0.05 20)',
+            cardForeground: 'oklch(0.95 0.02 20)',
+            popover: 'oklch(0.20 0.05 20)',
+            popoverForeground: 'oklch(0.95 0.02 20)',
+            primary: 'oklch(0.50 0.24 20)',
+            primaryForeground: 'oklch(0.98 0.01 20)',
+            secondary: 'oklch(0.28 0.05 20)',
+            secondaryForeground: 'oklch(0.95 0.02 20)',
+            muted: 'oklch(0.25 0.04 20)',
+            mutedForeground: 'oklch(0.60 0.03 20)',
+            accent: 'oklch(0.65 0.26 25)',
+            accentForeground: 'oklch(0.98 0.01 20)',
+            destructive: 'oklch(0.55 0.22 25)',
+            destructiveForeground: 'oklch(0.98 0.01 20)',
+            border: 'oklch(0.35 0.05 20)',
+            input: 'oklch(0.35 0.05 20)',
+            ring: 'oklch(0.50 0.24 20)',
+        },
+    },
+    'ocean-teal': {
+        name: 'ocean-teal',
+        displayName: 'Ocean Teal',
+        colors: {
+            background: 'oklch(0.17 0.04 200)',
+            foreground: 'oklch(0.95 0.02 200)',
+            card: 'oklch(0.22 0.05 200)',
+            cardForeground: 'oklch(0.95 0.02 200)',
+            popover: 'oklch(0.20 0.05 200)',
+            popoverForeground: 'oklch(0.95 0.02 200)',
+            primary: 'oklch(0.52 0.20 195)',
+            primaryForeground: 'oklch(0.98 0.01 200)',
+            secondary: 'oklch(0.28 0.05 200)',
+            secondaryForeground: 'oklch(0.95 0.02 200)',
+            muted: 'oklch(0.25 0.04 200)',
+            mutedForeground: 'oklch(0.60 0.03 200)',
+            accent: 'oklch(0.68 0.24 190)',
+            accentForeground: 'oklch(0.98 0.01 200)',
+            destructive: 'oklch(0.55 0.22 25)',
+            destructiveForeground: 'oklch(0.98 0.01 200)',
+            border: 'oklch(0.32 0.05 200)',
+            input: 'oklch(0.32 0.05 200)',
+            ring: 'oklch(0.52 0.20 195)',
+        },
+    },
+    'classic': {
+        name: 'classic',
+        displayName: 'Classic (Original)',
+        colors: {
+            background: '#0d0d1a',
+            foreground: '#e2e8f0',
+            card: 'rgba(26, 26, 46, 0.8)',
+            cardForeground: '#e2e8f0',
+            popover: '#1a1a2e',
+            popoverForeground: '#e2e8f0',
+            primary: '#8b5cf6',
+            primaryForeground: '#e2e8f0',
+            secondary: '#1a1a2e',
+            secondaryForeground: '#e2e8f0',
+            muted: '#16213e',
+            mutedForeground: '#64748b',
+            accent: '#a78bfa',
+            accentForeground: '#e2e8f0',
+            destructive: '#ef4444',
+            destructiveForeground: '#e2e8f0',
+            border: 'rgba(139, 92, 246, 0.2)',
+            input: 'rgba(139, 92, 246, 0.2)',
+            ring: '#8b5cf6',
+        },
+    },
+};
+
+const defaultTheme = 'classic';
+
+/**
+ * Apply a theme by setting CSS custom properties
+ * @param {string} themeName - The name of the theme to apply
+ */
+function applyTheme(themeName) {
+    const theme = themes[themeName];
+    if (!theme) {
+        console.warn(`Theme "${themeName}" not found, using default`);
+        themeName = defaultTheme;
+    }
+    
+    const actualTheme = themes[themeName];
+    const root = document.documentElement;
+    
+    // Map theme colors to existing CSS variables
+    const colorMap = {
+        background: '--bg-primary',
+        card: '--bg-card',
+        secondary: '--bg-secondary',
+        muted: '--bg-tertiary',
+        primary: '--accent-primary',
+        accent: '--accent-hover',
+        ring: '--accent-active',
+        foreground: '--text-primary',
+        mutedForeground: '--text-secondary',
+        border: '--border-color',
+        destructive: '--error',
+    };
+    
+    Object.entries(colorMap).forEach(([themeKey, cssVar]) => {
+        if (actualTheme.colors[themeKey]) {
+            root.style.setProperty(cssVar, actualTheme.colors[themeKey]);
+        }
+    });
+    
+    // Set accent glow based on primary color
+    root.style.setProperty('--accent-glow', actualTheme.colors.primary.replace(')', ', 0.4)').replace('oklch(', 'oklch(').replace('#', 'rgba('));
+    
+    // For hex colors, create proper rgba glow
+    if (actualTheme.colors.primary.startsWith('#')) {
+        const hex = actualTheme.colors.primary;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        root.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.4)`);
+        root.style.setProperty('--accent-subtle', `rgba(${r}, ${g}, ${b}, 0.1)`);
+    }
+    
+    // Store in localStorage
+    localStorage.setItem('trivia-quest-theme', themeName);
+    
+    // Update selector if exists
+    updateThemeSelector(themeName);
+}
+
+/**
+ * Get the current theme name from localStorage or return default
+ * @returns {string} The current theme name
+ */
+function getCurrentTheme() {
+    return localStorage.getItem('trivia-quest-theme') || defaultTheme;
+}
+
+/**
+ * Update the theme selector UI to reflect current selection
+ * @param {string} themeName - The currently active theme
+ */
+function updateThemeSelector(themeName) {
+    const buttons = document.querySelectorAll('.theme-option');
+    buttons.forEach(btn => {
+        const isSelected = btn.dataset.theme === themeName;
+        btn.classList.toggle('selected', isSelected);
+        
+        // Update checkmark visibility
+        const checkmark = btn.querySelector('.theme-checkmark');
+        if (checkmark) {
+            checkmark.style.display = isSelected ? 'flex' : 'none';
+        }
+    });
+}
+
+/**
+ * Render the theme selector UI
+ */
+function renderThemeSelector() {
+    const container = document.getElementById('themeOptions');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    Object.values(themes).forEach(theme => {
+        const btn = document.createElement('button');
+        btn.className = 'theme-option';
+        btn.dataset.theme = theme.name;
+        
+        // Create color preview
+        const preview = document.createElement('div');
+        preview.className = 'theme-preview';
+        preview.style.background = `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.accent} 100%)`;
+        
+        // Create label
+        const label = document.createElement('span');
+        label.className = 'theme-label';
+        label.textContent = theme.displayName;
+        
+        // Create checkmark
+        const checkmark = document.createElement('span');
+        checkmark.className = 'theme-checkmark';
+        checkmark.innerHTML = '✓';
+        checkmark.style.display = 'none';
+        
+        btn.appendChild(preview);
+        btn.appendChild(label);
+        btn.appendChild(checkmark);
+        
+        btn.addEventListener('click', () => applyTheme(theme.name));
+        
+        container.appendChild(btn);
+    });
+    
+    // Set initial selection
+    updateThemeSelector(getCurrentTheme());
+}
+
+/**
+ * Initialize the theme system
+ */
+function initThemes() {
+    // Apply saved theme immediately
+    applyTheme(getCurrentTheme());
+    
+    // Render theme selector
+    renderThemeSelector();
+}

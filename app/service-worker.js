@@ -1,9 +1,10 @@
 // Service Worker for Trivia Quest - Offline PWA Support
-const CACHE_NAME = 'trivia-quest-v1';
+const CACHE_NAME = 'trivia-quest-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './app.js',
+  './themes.js',
   './style.css',
   './logo.svg',
   './manifest.json'

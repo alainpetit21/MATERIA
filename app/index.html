@@ -183,6 +183,15 @@
                         <button class="btn btn-warning" id="resetScoresBtn" style="flex: 1;">Reset Scores</button>
                     </div>
                     <button class="btn btn-danger" id="resetBtn" style="margin-top: 0.5rem; width: 100%;">Reset All Data</button>
+                    <button class="btn btn-accent" id="endGameBtn" style="margin-top: 0.5rem; width: 100%;">🏁 End Game</button>
+                </div>
+            </section>
+
+            <!-- Theme -->
+            <section class="control-section collapsed" data-section="theme">
+                <h3>🎨 Theme</h3>
+                <div class="section-content">
+                    <div class="theme-selector" id="themeOptions"></div>
                 </div>
             </section>
         </div>
@@ -190,8 +199,94 @@
 
     <!-- Main Content -->
     <main class="main-content" id="mainContent">
+        <!-- Welcome/Setup Screen -->
+        <section class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-content">
+                <div class="welcome-hero">
+                    <img src="logo.svg" alt="Trivia Quest Logo" class="welcome-logo">
+                    <h1 class="welcome-title">${APP_TITLE}</h1>
+                    <p class="welcome-subtitle">Test your knowledge and challenge your friends!</p>
+                </div>
+                
+                <div class="setup-card">
+                    <div class="setup-section">
+                        <h2>🎮 Game Mode</h2>
+                        <div class="mode-selector">
+                            <button class="mode-btn active" id="setupSingleMode" data-mode="single">
+                                <span class="mode-icon">❓</span>
+                                <span class="mode-title">Single Questions</span>
+                                <span class="mode-desc">One question at a time</span>
+                            </button>
+                            <button class="mode-btn" id="setupJeopardyMode" data-mode="jeopardy">
+                                <span class="mode-icon">📊</span>
+                                <span class="mode-title">Jeopardy Board</span>
+                                <span class="mode-desc">Classic category grid</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-section">
+                        <h2>👥 Teams</h2>
+                        <div class="team-setup-grid" id="setupTeamGrid">
+                            <!-- Team cards will be dynamically inserted -->
+                        </div>
+                        <div class="team-controls">
+                            <button class="btn btn-secondary btn-sm" id="addTeamBtn">+ Add Team</button>
+                            <span class="team-count-label" id="teamCountLabel">1 team</span>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-section">
+                        <h2>⚙️ Quick Settings</h2>
+                        <div class="quick-settings">
+                            <label class="setting-toggle">
+                                <input type="checkbox" id="setupRandomize">
+                                <span>Randomize Questions</span>
+                            </label>
+                            <label class="setting-toggle">
+                                <input type="checkbox" id="setupSound" checked>
+                                <span>Sound Effects</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-lg start-game-btn" id="startGameBtn">
+                        <span class="btn-icon">▶</span>
+                        Start Game
+                    </button>
+                    
+                    <p class="setup-hint">Configure more options using the sidebar menu (☰)</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Game Over Screen -->
+        <section class="game-over-screen hidden" id="gameOverScreen">
+            <div class="confetti-container" id="confettiContainer"></div>
+            <div class="game-over-content">
+                <div class="trophy-icon">🏆</div>
+                <h1 class="game-over-title">Game Over!</h1>
+                <p class="winner-announcement" id="winnerAnnouncement">Congratulations!</p>
+                
+                <div class="final-scores" id="finalScores">
+                    <!-- Final scores will be inserted here -->
+                </div>
+                
+                <div class="game-over-actions">
+                    <button class="btn btn-primary btn-lg" id="playAgainBtn">
+                        <span class="btn-icon">🔄</span>
+                        Play Again
+                    </button>
+                    <button class="btn btn-secondary" id="newGameBtn">
+                        <span class="btn-icon">🏠</span>
+                        New Game
+                    </button>
+                </div>
+            </div>
+        </section>
+
         <!-- Header -->
-        <header class="game-header">
+        <header class="game-header hidden" id="gameHeader">
             <div class="logo-title">
                 <img src="logo.svg" alt="MV Logo" class="header-logo">
                 <h1 class="game-title">${APP_TITLE}</h1>
@@ -203,7 +298,7 @@
         </header>
 
         <!-- Single Question Mode -->
-        <section class="game-area single-mode" id="singleMode">
+        <section class="game-area single-mode hidden" id="singleMode">
             <div class="question-card" id="questionCard">
                 <div class="question-meta">
                     <span class="category-badge" id="currentCategory">Category</span>
@@ -212,6 +307,7 @@
                 </div>
                 <p class="question-text" id="questionText">Press "Next Question" to start!</p>
                 <div class="answers-grid" id="answersGrid"></div>
+                <div class="answer-description hidden" id="singleDescription"></div>
                 <div class="question-actions" id="questionActions">
                     <button class="btn btn-primary" id="nextQuestionBtn">Next Question</button>
                     <button class="btn btn-secondary" id="skipQuestionBtn" disabled>Skip Question</button>
@@ -239,6 +335,7 @@
                 </div>
                 <p class="question-text" id="modalQuestionText">Question goes here</p>
                 <div class="answers-grid" id="modalAnswersGrid"></div>
+                <div class="answer-description hidden" id="modalDescription"></div>
                 <div class="modal-award-section hidden" id="modalAwardSection">
                     <span class="award-label" id="modalAwardLabel">Award points to:</span>
                     <div class="award-buttons" id="modalAwardButtons"></div>
@@ -254,14 +351,43 @@
         <div class="modal-overlay hidden" id="addQuestionModal" role="dialog" aria-modal="true" aria-labelledby="addQuestionTitle">
             <div class="modal-content add-question-modal">
                 <div class="add-question-header">
-                    <h2 id="addQuestionTitle">Add Question</h2>
-                    <button type="button" class="btn btn-secondary btn-small" id="bulkAddBtn">📋 Bulk Add</button>
+                    <h2 id="addQuestionTitle">Question Manager</h2>
+                    <button type="button" class="modal-close-btn" id="closeAddQuestionBtn3" aria-label="Close">&times;</button>
                 </div>
                 
-                <!-- Single Add Form -->
+                <!-- Tabs -->
+                <div class="question-tabs">
+                    <button type="button" class="tab-btn active" data-tab="single">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,160H40V56H216V200ZM184,96a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h96A8,8,0,0,1,184,96Zm0,32a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h96A8,8,0,0,1,184,128Zm0,32a8,8,0,0,1-8,8H80a8,8,0,0,1,0-16h96A8,8,0,0,1,184,160Z"/></svg>
+                        Add Single
+                    </button>
+                    <button type="button" class="tab-btn" data-tab="bulk">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M28,64A12,12,0,0,1,40,52H216a12,12,0,0,1,0,24H40A12,12,0,0,1,28,64Zm12,76H216a12,12,0,0,0,0-24H40a12,12,0,0,0,0,24Zm176,40H40a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24Z"/></svg>
+                        Bulk Add
+                    </button>
+                </div>
+                
+                <!-- Tab Content: Single Add Form -->
+                <div class="tab-content active" id="singleTabContent">
                 <form id="addQuestionForm">
                     <div id="singleAddForm">
-                        <div class="form-row">
+                        <!-- Question Text -->
+                        <div class="form-group">
+                            <label for="newQuestion">Question</label>
+                            <textarea id="newQuestion" required placeholder="Enter your question..."></textarea>
+                        </div>
+                        
+                        <!-- 2x2 Grid: Type, Category, Difficulty, Subcategory -->
+                        <div class="form-grid-2x2">
+                            <div class="form-group">
+                                <label for="newType">Question Type</label>
+                                <select id="newType" required>
+                                    <option value="multiple_choice" selected>Multiple Choice (1 correct)</option>
+                                    <option value="multiple_answer">Multiple Answer (multi-select)</option>
+                                    <option value="general">Text Input</option>
+                                    <option value="hidden">Hidden Answer</option>
+                                </select>
+                            </div>
                             <div class="form-group">
                                 <label for="newCategory">Category</label>
                                 <input type="text" id="newCategory" required placeholder="e.g., Science">
@@ -269,36 +395,48 @@
                             <div class="form-group">
                                 <label for="newDifficulty">Difficulty</label>
                                 <select id="newDifficulty" required>
-                                    <option value="L1">L1 (Easy)</option>
-                                    <option value="L2">L2 (Hard)</option>
+                                    <option value="L1">L1 (Easiest)</option>
+                                    <option value="L2">L2 (Easy)</option>
+                                    <option value="L3" selected>L3 (Medium)</option>
+                                    <option value="L4">L4 (Hard)</option>
+                                    <option value="L5">L5 (Hardest)</option>
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label for="newSubcategory">Subcategory <small>(optional)</small></label>
+                                <input type="text" id="newSubcategory" placeholder="e.g., Physics">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="newType">Question Type</label>
-                            <select id="newType" required>
-                                <option value="general">General Question (text input)</option>
-                                <option value="multiple_choice" selected>Multiple Choice (1 correct answer)</option>
-                                <option value="multiple_answer">Multiple Answer (select all correct)</option>
-                                <option value="hidden">Hidden (reveal answer)</option>
-                            </select>
+                        
+                        <!-- Answer Options Section (for multiple choice) -->
+                        <div class="form-group" id="answerOptionsGroup">
+                            <div class="answer-options-header">
+                                <label>Answer Options</label>
+                                <button type="button" class="btn btn-small btn-outline" id="addOptionBtn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
+                                    Add Option
+                                </button>
+                            </div>
+                            <div id="answerOptionsList" class="answer-options-list">
+                                <!-- Dynamic options will be added here -->
+                            </div>
+                            <p class="form-hint" id="answerOptionsHint">Check the box next to correct answer(s)</p>
                         </div>
-                        <div class="form-group">
-                            <label for="newQuestion">Question</label>
-                            <textarea id="newQuestion" required placeholder="Enter your question..."></textarea>
+                        
+                        <!-- Text Input Answers (for general/text-input type) -->
+                        <div class="form-group hidden" id="textAnswersGroup">
+                            <label for="newTextAnswers">Accepted Answers <small>(one per line)</small></label>
+                            <textarea id="newTextAnswers" placeholder="Answer 1&#10;Answer 2&#10;Answer 3"></textarea>
+                            <p class="form-hint">Enter all acceptable variations (case-insensitive matching)</p>
                         </div>
-                        <div class="form-group">
-                            <label for="newDescription">Description / Notes <small>(optional)</small></label>
-                            <textarea id="newDescription" placeholder="Additional notes or context for this question..."></textarea>
+                        
+                        <!-- Hidden Answer (for reveal type) -->
+                        <div class="form-group hidden" id="hiddenAnswerGroup">
+                            <label for="newHiddenAnswer">Answer <small>(for host reference)</small></label>
+                            <input type="text" id="newHiddenAnswer" placeholder="Enter the answer...">
                         </div>
-                        <div class="form-group">
-                            <label for="newAnswers">Correct Answer(s) <small>(comma-separated for multiple)</small></label>
-                            <input type="text" id="newAnswers" required placeholder="e.g., Paris, paris">
-                        </div>
-                        <div class="form-group" id="incorrectAnswersGroup">
-                            <label for="newIncorrect">Incorrect Answers <small>(3-7, comma-separated)</small></label>
-                            <input type="text" id="newIncorrect" placeholder="e.g., London, Berlin, Madrid, Rome, Vienna, Amsterdam, Brussels">
-                        </div>
+                        
+                        <!-- Regex Options (for text input) -->
                         <div class="form-group hidden" id="regexGroup">
                             <label for="newRegex">Regex Pattern</label>
                             <div class="regex-template-row">
@@ -314,21 +452,34 @@
                                 </select>
                             </div>
                             <input type="text" id="newRegex" placeholder="e.g., ^(4|four)$">
-                            <small>Pattern to validate user input (case-insensitive)</small>
+                            <p class="form-hint">Pattern to validate user input (case-insensitive)</p>
                         </div>
                         <div class="form-group hidden" id="regexDescGroup">
-                            <label for="newRegexDescription">Regex Hint <small>(shown to user)</small></label>
+                            <label for="newRegexDescription">Input Hint <small>(shown to user)</small></label>
                             <input type="text" id="newRegexDescription" placeholder="e.g., Enter the number as a digit or word">
                         </div>
+                        
+                        <!-- Explanation/Notes -->
+                        <div class="form-group">
+                            <label for="newDescription">Explanation / Notes <small>(optional)</small></label>
+                            <textarea id="newDescription" placeholder="Add an explanation or fun fact..."></textarea>
+                        </div>
+                        
+                        <!-- Actions -->
                         <div class="modal-actions">
-                            <button type="submit" class="btn btn-primary">Add Question</button>
+                            <button type="submit" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
+                                Add Question
+                            </button>
                             <button type="button" class="btn btn-secondary" id="closeAddQuestionBtn">Cancel</button>
                         </div>
                     </div>
                 </form>
+                </div>
                 
-                <!-- Bulk Add Form -->
-                <div id="bulkAddForm" class="hidden">
+                <!-- Tab Content: Bulk Add Form -->
+                <div class="tab-content" id="bulkTabContent">
+                <div id="bulkAddForm">
                     <div class="bulk-add-header">
                         <span>Category</span>
                         <span>Diff</span>
@@ -340,11 +491,20 @@
                     </div>
                     <div id="bulkAddRows" class="bulk-add-rows"></div>
                     <div class="bulk-add-actions">
-                        <button type="button" class="btn btn-secondary" id="addBulkRowBtn">+ Add Row</button>
-                        <button type="button" class="btn btn-primary" id="submitBulkBtn">Add All Questions</button>
-                        <button type="button" class="btn btn-secondary" id="closeAddQuestionBtn2" onclick="document.getElementById('addQuestionModal').classList.add('hidden')">Cancel</button>
+                        <button type="button" class="btn btn-secondary" id="addBulkRowBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg>
+                            Add Row
+                        </button>
+                        <button type="button" class="btn btn-primary" id="submitBulkBtn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>
+                            Add All Questions
+                        </button>
                     </div>
-                    <small class="bulk-hint">💡 Compact form for adding multiple questions quickly. Max 10 at a time.</small>
+                    <div class="bulk-info-bar">
+                        <span class="bulk-count">0 questions ready</span>
+                        <span class="bulk-hint">Max 10 questions at a time</span>
+                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -397,6 +557,7 @@
         </a>
     </div>
 
+    <script src="themes.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

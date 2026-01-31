@@ -6,7 +6,7 @@ let state = {
     currentQuestionIndex: null,
     currentCustomPoints: null,
     currentDisplayedPoints: null,
-    teams: [{ name: 'Team 1', score: 0 }],
+    teams: [{ name: 'Team 1', score: 0, color: 'oklch(0.50 0.20 290)' }],
     teamCount: 1,
     gameMode: 'single', // 'single' or 'jeopardy'
     questionOrder: 'ordered', // 'ordered' or 'randomized'
@@ -23,8 +23,20 @@ let state = {
     feedbackIntensity: 'full',
     volume: 0.5, // 0 to 1 volume level
     answerRevealed: false,
-    presentationMode: false // Hide admin controls for participant view
+    presentationMode: false, // Hide admin controls for participant view
+    gameStarted: false, // Whether game has been started from welcome screen
+    gameEnded: false // Whether the game has ended
 };
+
+// Team color palette
+const TEAM_COLORS = [
+    'oklch(0.50 0.20 290)', // Purple
+    'oklch(0.60 0.15 190)', // Teal
+    'oklch(0.68 0.18 30)',  // Orange
+    'oklch(0.65 0.18 130)', // Green
+    'oklch(0.55 0.20 350)', // Pink
+    'oklch(0.60 0.18 60)',  // Yellow
+];
 
 // ==================== REGEX VALIDATION ====================
 const REGEX_TIMEOUT_MS = 100;
@@ -173,6 +185,28 @@ const elements = {
     sidebarToggle: document.getElementById('sidebarToggle'),
     mainContent: document.getElementById('mainContent'),
     
+    // Welcome/Setup Screen
+    welcomeScreen: document.getElementById('welcomeScreen'),
+    setupSingleMode: document.getElementById('setupSingleMode'),
+    setupJeopardyMode: document.getElementById('setupJeopardyMode'),
+    setupTeamGrid: document.getElementById('setupTeamGrid'),
+    addTeamBtn: document.getElementById('addTeamBtn'),
+    teamCountLabel: document.getElementById('teamCountLabel'),
+    setupRandomize: document.getElementById('setupRandomize'),
+    setupSound: document.getElementById('setupSound'),
+    startGameBtn: document.getElementById('startGameBtn'),
+    
+    // Game Over Screen
+    gameOverScreen: document.getElementById('gameOverScreen'),
+    confettiContainer: document.getElementById('confettiContainer'),
+    winnerAnnouncement: document.getElementById('winnerAnnouncement'),
+    finalScores: document.getElementById('finalScores'),
+    playAgainBtn: document.getElementById('playAgainBtn'),
+    newGameBtn: document.getElementById('newGameBtn'),
+    
+    // Game Header
+    gameHeader: document.getElementById('gameHeader'),
+    
     // Mode buttons
     singleModeBtn: document.getElementById('singleModeBtn'),
     jeopardyModeBtn: document.getElementById('jeopardyModeBtn'),
@@ -215,6 +249,7 @@ const elements = {
     resetBtn: document.getElementById('resetBtn'),
     resetScoresBtn: document.getElementById('resetScoresBtn'),
     resetQuestionsBtn: document.getElementById('resetQuestionsBtn'),
+    endGameBtn: document.getElementById('endGameBtn'),
     
     // Question counter
     questionCounter: document.getElementById('questionCounter'),
@@ -227,6 +262,7 @@ const elements = {
     currentPoints: document.getElementById('currentPoints'),
     questionText: document.getElementById('questionText'),
     answersGrid: document.getElementById('answersGrid'),
+    singleDescription: document.getElementById('singleDescription'),
     nextQuestionBtn: document.getElementById('nextQuestionBtn'),
     skipQuestionBtn: document.getElementById('skipQuestionBtn'),
     
@@ -240,18 +276,21 @@ const elements = {
     modalPoints: document.getElementById('modalPoints'),
     modalQuestionText: document.getElementById('modalQuestionText'),
     modalAnswersGrid: document.getElementById('modalAnswersGrid'),
+    modalDescription: document.getElementById('modalDescription'),
     closeModalBtn: document.getElementById('closeModalBtn'),
     
     // Add Question Modal
     addQuestionModal: document.getElementById('addQuestionModal'),
     openAddQuestionBtn: document.getElementById('openAddQuestionBtn'),
     closeAddQuestionBtn: document.getElementById('closeAddQuestionBtn'),
-    bulkAddBtn: document.getElementById('bulkAddBtn'),
+    closeAddQuestionBtn3: document.getElementById('closeAddQuestionBtn3'),
     singleAddForm: document.getElementById('singleAddForm'),
     bulkAddForm: document.getElementById('bulkAddForm'),
     bulkAddRows: document.getElementById('bulkAddRows'),
     addBulkRowBtn: document.getElementById('addBulkRowBtn'),
     submitBulkBtn: document.getElementById('submitBulkBtn'),
+    singleTabContent: document.getElementById('singleTabContent'),
+    bulkTabContent: document.getElementById('bulkTabContent'),
     newType: document.getElementById('newType'),
     newDescription: document.getElementById('newDescription'),
     newRegex: document.getElementById('newRegex'),
@@ -259,7 +298,14 @@ const elements = {
     regexTemplate: document.getElementById('regexTemplate'),
     regexGroup: document.getElementById('regexGroup'),
     regexDescGroup: document.getElementById('regexDescGroup'),
-    incorrectAnswersGroup: document.getElementById('incorrectAnswersGroup'),
+    answerOptionsGroup: document.getElementById('answerOptionsGroup'),
+    answerOptionsList: document.getElementById('answerOptionsList'),
+    addOptionBtn: document.getElementById('addOptionBtn'),
+    textAnswersGroup: document.getElementById('textAnswersGroup'),
+    newTextAnswers: document.getElementById('newTextAnswers'),
+    hiddenAnswerGroup: document.getElementById('hiddenAnswerGroup'),
+    newHiddenAnswer: document.getElementById('newHiddenAnswer'),
+    newSubcategory: document.getElementById('newSubcategory'),
     
     // Categories Modal (Server Questions)
     categoriesModal: document.getElementById('categoriesModal'),
@@ -305,7 +351,14 @@ function loadState() {
             usedQuestions: new Set(parsed.usedQuestions || []),
             // Ensure new fields have defaults for older saved states
             questionOrder: parsed.questionOrder || 'ordered',
-            nextQuestionId: parsed.nextQuestionId || (parsed.questions?.length || 0) + 1
+            nextQuestionId: parsed.nextQuestionId || (parsed.questions?.length || 0) + 1,
+            gameStarted: parsed.gameStarted ?? false,
+            gameEnded: parsed.gameEnded ?? false,
+            // Ensure teams have colors
+            teams: (parsed.teams || []).map((t, i) => ({
+                ...t,
+                color: t.color || TEAM_COLORS[i % TEAM_COLORS.length]
+            }))
         };
         return true;
     }
@@ -592,12 +645,11 @@ function skipAward() {
 
 function proceedAfterAward() {
     if (state.gameMode === 'jeopardy') {
-        // Remove ALL descriptions (may be in answersGrid or parent container)
-        const parentContainer = elements.modalAnswersGrid.parentElement;
-        if (parentContainer) {
-            parentContainer.querySelectorAll('.answer-description').forEach(el => el.remove());
+        // Hide the dedicated description element
+        if (elements.modalDescription) {
+            elements.modalDescription.classList.add('hidden');
+            elements.modalDescription.innerHTML = '';
         }
-        elements.modalAnswersGrid.querySelectorAll('.answer-description').forEach(el => el.remove());
         // Close modal and return to board
         elements.questionModal.classList.add('hidden');
         state.answerRevealed = false;
@@ -657,11 +709,13 @@ function displayQuestion(question, index, isModal = false) {
     const pointsEl = isModal ? elements.modalPoints : elements.currentPoints;
     const questionEl = isModal ? elements.modalQuestionText : elements.questionText;
     const answersEl = isModal ? elements.modalAnswersGrid : elements.answersGrid;
+    const descriptionEl = isModal ? elements.modalDescription : elements.singleDescription;
     
-    // Remove any existing descriptions from previous question (may be outside answersEl)
-    const parentContainer = answersEl.parentElement;
-    if (parentContainer) {
-        parentContainer.querySelectorAll('.answer-description').forEach(el => el.remove());
+    // Hide the dedicated description element from previous question
+    if (descriptionEl) {
+        descriptionEl.classList.add('hidden');
+        descriptionEl.innerHTML = '';
+        descriptionEl.className = 'answer-description hidden';
     }
     
     categoryEl.textContent = question.Category;
@@ -1106,21 +1160,37 @@ function revealAnswer(clickedBtn, container) {
 
 // Show description after answer is revealed (for learning purposes)
 function showDescriptionAfterAnswer(container, description, isCorrect = false) {
-    // Check if description element already exists
-    let descEl = container.parentElement.querySelector('.answer-description');
+    // Find the dedicated description element based on game mode
+    let descEl;
+    if (state.gameMode === 'jeopardy') {
+        descEl = elements.modalDescription;
+    } else {
+        descEl = elements.singleDescription;
+    }
+    
+    // Fallback: look in container's parent
     if (!descEl) {
-        // Create new description element
+        descEl = container.parentElement.querySelector('.answer-description');
+    }
+    
+    // Last resort: create if not found
+    if (!descEl) {
         descEl = document.createElement('div');
         descEl.className = 'answer-description';
         container.parentElement.appendChild(descEl);
     }
+    
     // Add class based on correctness for styling
     descEl.classList.toggle('correct-explanation', isCorrect);
     descEl.classList.toggle('incorrect-explanation', !isCorrect);
     
     const icon = isCorrect ? '✨' : '💡';
     const prefix = isCorrect ? 'Learn more:' : 'Explanation:';
-    descEl.innerHTML = `<strong>${icon} ${prefix}</strong> ${escapeHtml(description)}`;
+    
+    // Convert \n (escaped) and actual newlines to <br> for proper line breaks
+    const formattedDesc = escapeHtml(description).replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+    
+    descEl.innerHTML = `<strong>${icon} ${prefix}</strong>${formattedDesc}`;
     descEl.classList.remove('hidden');
 }
 
@@ -1353,12 +1423,12 @@ function openJeopardyQuestion(index, customPoints = null) {
 }
 
 function closeModal() {
-    // Remove ALL descriptions (may be in answersGrid or parent container)
-    const parentContainer = elements.modalAnswersGrid.parentElement;
-    if (parentContainer) {
-        parentContainer.querySelectorAll('.answer-description').forEach(el => el.remove());
+    // Hide the dedicated description element
+    if (elements.modalDescription) {
+        elements.modalDescription.classList.add('hidden');
+        elements.modalDescription.innerHTML = '';
+        elements.modalDescription.className = 'answer-description hidden';
     }
-    elements.modalAnswersGrid.querySelectorAll('.answer-description').forEach(el => el.remove());
     elements.questionModal.classList.add('hidden');
     hideAwardButtons();
     state.answerRevealed = false;
@@ -1881,6 +1951,7 @@ function addQuestion(e) {
     let category = document.getElementById('newCategory').value.trim();
     const difficulty = document.getElementById('newDifficulty').value;
     const questionType = document.getElementById('newType').value;
+    const subcategory = document.getElementById('newSubcategory')?.value.trim() || '';
     
     // Normalize category to match existing categories (case-insensitive)
     const existingCategory = state.questions.find(q => 
@@ -1889,32 +1960,63 @@ function addQuestion(e) {
     if (existingCategory) {
         category = existingCategory.Category; // Use existing casing
     }
+    
     const question = document.getElementById('newQuestion').value.trim();
     const description = document.getElementById('newDescription').value.trim();
-    const answers = document.getElementById('newAnswers').value.split(',').map(a => a.trim()).filter(a => a);
-    const incorrect = document.getElementById('newIncorrect').value.split(',').map(a => a.trim()).filter(a => a);
     const regex = document.getElementById('newRegex').value.trim();
     const regexDescription = document.getElementById('newRegexDescription').value.trim();
     
-    // Validate based on question type
+    let answers = [];
+    let incorrect = [];
+    
+    // Collect answers based on question type
     if (questionType === 'multiple_choice' || questionType === 'multiple_answer') {
-        if (incorrect.length < 3 || incorrect.length > 7) {
-            alert('Please provide between 3 and 7 incorrect answers.');
+        const optionsData = getAnswerOptionsData();
+        answers = optionsData.correct;
+        incorrect = optionsData.incorrect;
+        
+        // Validate: at least 1 correct and 1 incorrect (minimum 2 total options)
+        if (answers.length === 0) {
+            alert('Please select at least one correct answer by checking the box.');
             return;
         }
-    }
-    
-    if (questionType === 'general' && regex) {
-        const validation = validateRegexPattern(regex);
-        if (!validation.valid) {
-            alert(`Invalid regex pattern: ${validation.error}`);
+        if (incorrect.length === 0) {
+            alert('Please provide at least one incorrect answer option.');
             return;
+        }
+        if (questionType === 'multiple_choice' && answers.length > 1) {
+            alert('Multiple Choice allows only one correct answer. Use Multiple Answer for multiple correct answers.');
+            return;
+        }
+    } else if (questionType === 'general') {
+        // Text input type - answers from textarea (one per line)
+        const textAnswers = document.getElementById('newTextAnswers')?.value || '';
+        answers = textAnswers.split('\n').map(a => a.trim()).filter(a => a);
+        
+        if (answers.length === 0) {
+            alert('Please provide at least one accepted answer.');
+            return;
+        }
+        
+        if (regex) {
+            const validation = validateRegexPattern(regex);
+            if (!validation.valid) {
+                alert(`Invalid regex pattern: ${validation.error}`);
+                return;
+            }
+        }
+    } else if (questionType === 'hidden') {
+        // Hidden answer type - single answer field
+        const hiddenAnswer = document.getElementById('newHiddenAnswer')?.value.trim() || '';
+        if (hiddenAnswer) {
+            answers = [hiddenAnswer];
         }
     }
     
     const newQ = {
         QuestionId: state.nextQuestionId++,
         Category: category,
+        Subcategory: subcategory,
         Difficulty: difficulty,
         Type: questionType,
         Question: question,
@@ -1950,26 +2052,45 @@ function resetAddQuestionForm() {
     // Reset visibility of conditional fields
     if (elements.regexGroup) elements.regexGroup.classList.add('hidden');
     if (elements.regexDescGroup) elements.regexDescGroup.classList.add('hidden');
-    if (elements.incorrectAnswersGroup) elements.incorrectAnswersGroup.classList.remove('hidden');
+    if (elements.answerOptionsGroup) elements.answerOptionsGroup.classList.remove('hidden');
+    if (elements.textAnswersGroup) elements.textAnswersGroup.classList.add('hidden');
+    if (elements.hiddenAnswerGroup) elements.hiddenAnswerGroup.classList.add('hidden');
     if (elements.newType) elements.newType.value = 'multiple_choice';
+    // Initialize with 4 answer options
+    initAnswerOptions();
 }
 
 function handleQuestionTypeChange(e) {
-    const type = e.target.value;
+    const type = e ? e.target.value : document.getElementById('newType')?.value;
     
-    // Show/hide regex fields (for 'general' type)
-    const showRegex = type === 'general';
-    if (elements.regexGroup) elements.regexGroup.classList.toggle('hidden', !showRegex);
-    if (elements.regexDescGroup) elements.regexDescGroup.classList.toggle('hidden', !showRegex);
+    // Hide all answer input sections first
+    if (elements.answerOptionsGroup) elements.answerOptionsGroup.classList.add('hidden');
+    if (elements.textAnswersGroup) elements.textAnswersGroup.classList.add('hidden');
+    if (elements.hiddenAnswerGroup) elements.hiddenAnswerGroup.classList.add('hidden');
+    if (elements.regexGroup) elements.regexGroup.classList.add('hidden');
+    if (elements.regexDescGroup) elements.regexDescGroup.classList.add('hidden');
     
-    // Show/hide incorrect answers (not needed for hidden or general)
-    const showIncorrect = type === 'multiple_choice' || type === 'multiple_answer';
-    if (elements.incorrectAnswersGroup) elements.incorrectAnswersGroup.classList.toggle('hidden', !showIncorrect);
-    
-    // Update required attribute
-    const incorrectInput = document.getElementById('newIncorrect');
-    if (incorrectInput) {
-        incorrectInput.required = showIncorrect;
+    // Show appropriate section based on type
+    switch(type) {
+        case 'multiple_choice':
+        case 'multiple_answer':
+            if (elements.answerOptionsGroup) elements.answerOptionsGroup.classList.remove('hidden');
+            // Update hint text
+            const hint = document.getElementById('answerOptionsHint');
+            if (hint) {
+                hint.textContent = type === 'multiple_choice' 
+                    ? 'Check the box next to the correct answer' 
+                    : 'Check boxes next to all correct answers';
+            }
+            break;
+        case 'general':
+            if (elements.textAnswersGroup) elements.textAnswersGroup.classList.remove('hidden');
+            if (elements.regexGroup) elements.regexGroup.classList.remove('hidden');
+            if (elements.regexDescGroup) elements.regexDescGroup.classList.remove('hidden');
+            break;
+        case 'hidden':
+            if (elements.hiddenAnswerGroup) elements.hiddenAnswerGroup.classList.remove('hidden');
+            break;
     }
 }
 
@@ -2208,44 +2329,179 @@ function saveAccordionState() {
 function openAddQuestionModal() {
     const modal = document.getElementById('addQuestionModal');
     modal.classList.remove('hidden');
-    document.getElementById('newCategory').focus();
+    // Reset to single tab
+    switchQuestionTab('single');
+    document.getElementById('newQuestion').focus();
 }
 
 function closeAddQuestionModal() {
     const modal = document.getElementById('addQuestionModal');
     modal.classList.add('hidden');
     elements.addQuestionForm.reset();
-    // Reset to single add form
-    if (elements.singleAddForm) elements.singleAddForm.classList.remove('hidden');
-    if (elements.bulkAddForm) elements.bulkAddForm.classList.add('hidden');
+    // Reset to single tab and reinitialize
+    switchQuestionTab('single');
+    initAnswerOptions();
+}
+
+// ==================== DYNAMIC ANSWER OPTIONS ====================
+function initAnswerOptions() {
+    const container = elements.answerOptionsList;
+    if (!container) return;
+    container.innerHTML = '';
+    // Start with 4 empty options
+    for (let i = 0; i < 4; i++) {
+        addAnswerOption();
+    }
+}
+
+function addAnswerOption(value = '', isCorrect = false) {
+    const container = elements.answerOptionsList;
+    if (!container) return;
+    
+    const optionCount = container.children.length;
+    if (optionCount >= 10) {
+        alert('Maximum 10 options allowed');
+        return;
+    }
+    
+    const row = document.createElement('div');
+    row.className = 'answer-option-row' + (isCorrect ? ' is-correct' : '');
+    row.innerHTML = `
+        <input type="checkbox" class="option-correct" ${isCorrect ? 'checked' : ''} title="Mark as correct">
+        <input type="text" class="option-text" placeholder="Option ${optionCount + 1}" value="${escapeHtml(value)}">
+        <button type="button" class="btn-remove-option" title="Remove option">✕</button>
+    `;
+    
+    // Checkbox behavior based on question type
+    const checkbox = row.querySelector('.option-correct');
+    checkbox.addEventListener('change', (e) => handleCorrectAnswerToggle(e, row));
+    
+    // Remove button handler
+    row.querySelector('.btn-remove-option').addEventListener('click', () => removeAnswerOption(row));
+    
+    container.appendChild(row);
+    updateOptionPlaceholders();
+}
+
+function removeAnswerOption(row) {
+    const container = elements.answerOptionsList;
+    if (!container) return;
+    
+    if (container.children.length <= 2) {
+        alert('Minimum 2 options required');
+        return;
+    }
+    row.remove();
+    updateOptionPlaceholders();
+}
+
+function handleCorrectAnswerToggle(e, row) {
+    const type = elements.newType?.value;
+    const checkbox = e.target;
+    
+    if (type === 'multiple_choice') {
+        // Single select - uncheck all others
+        document.querySelectorAll('.answer-option-row .option-correct').forEach(cb => {
+            if (cb !== checkbox) {
+                cb.checked = false;
+                cb.closest('.answer-option-row').classList.remove('is-correct');
+            }
+        });
+    }
+    
+    // Toggle visual highlight
+    row.classList.toggle('is-correct', checkbox.checked);
+}
+
+function updateOptionPlaceholders() {
+    const rows = document.querySelectorAll('.answer-option-row');
+    rows.forEach((row, idx) => {
+        const input = row.querySelector('.option-text');
+        if (input) {
+            input.placeholder = `Option ${idx + 1}`;
+        }
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function getAnswerOptionsData() {
+    const rows = document.querySelectorAll('.answer-option-row');
+    const correct = [];
+    const incorrect = [];
+    
+    rows.forEach(row => {
+        const text = row.querySelector('.option-text').value.trim();
+        const isCorrect = row.querySelector('.option-correct').checked;
+        
+        if (text) {
+            if (isCorrect) {
+                correct.push(text);
+            } else {
+                incorrect.push(text);
+            }
+        }
+    });
+    
+    return { correct, incorrect };
+}
+
+// ==================== QUESTION MANAGER TABS ====================
+function switchQuestionTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.question-tabs .tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    
+    // Update tab content
+    if (elements.singleTabContent) {
+        elements.singleTabContent.classList.toggle('active', tabName === 'single');
+    }
+    if (elements.bulkTabContent) {
+        elements.bulkTabContent.classList.toggle('active', tabName === 'bulk');
+    }
+    
+    // Initialize answer options when switching to single tab
+    if (tabName === 'single' && elements.answerOptionsList && elements.answerOptionsList.children.length === 0) {
+        initAnswerOptions();
+    }
+    
+    // Initialize bulk rows if switching to bulk tab
+    if (tabName === 'bulk' && elements.bulkAddRows && elements.bulkAddRows.children.length === 0) {
+        for (let i = 0; i < 3; i++) {
+            addBulkRow();
+        }
+    }
+    
+    // Update bulk count display
+    if (tabName === 'bulk') {
+        updateBulkCount();
+    }
+}
+
+function initQuestionTabs() {
+    document.querySelectorAll('.question-tabs .tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            switchQuestionTab(btn.dataset.tab);
+        });
+    });
 }
 
 // ==================== BULK ADD QUESTIONS ====================
-function toggleBulkAddMode() {
-    const singleForm = elements.singleAddForm;
-    const bulkForm = elements.bulkAddForm;
-    const bulkBtn = elements.bulkAddBtn;
-    
-    if (!singleForm || !bulkForm) return;
-    
-    const isBulkMode = !bulkForm.classList.contains('hidden');
-    
-    if (isBulkMode) {
-        // Switch to single mode
-        singleForm.classList.remove('hidden');
-        bulkForm.classList.add('hidden');
-        bulkBtn.textContent = '📋 Bulk Add';
-    } else {
-        // Switch to bulk mode
-        singleForm.classList.add('hidden');
-        bulkForm.classList.remove('hidden');
-        bulkBtn.textContent = '✏️ Single Add';
-        // Initialize with 3 rows if empty
-        if (elements.bulkAddRows.children.length === 0) {
-            for (let i = 0; i < 3; i++) {
-                addBulkRow();
-            }
-        }
+function updateBulkCount() {
+    const rows = elements.bulkAddRows ? elements.bulkAddRows.querySelectorAll('.bulk-row') : [];
+    const countEl = document.querySelector('.bulk-count');
+    if (countEl) {
+        const validRows = Array.from(rows).filter(row => {
+            const category = row.querySelector('.bulk-category').value.trim();
+            const question = row.querySelector('.bulk-question').value.trim();
+            return category && question;
+        });
+        countEl.textContent = `${validRows.length} question${validRows.length !== 1 ? 's' : ''} ready`;
     }
 }
 
@@ -2267,6 +2523,9 @@ function addBulkRow() {
         <select class="bulk-difficulty">
             <option value="L1">L1</option>
             <option value="L2">L2</option>
+            <option value="L3" selected>L3</option>
+            <option value="L4">L4</option>
+            <option value="L5">L5</option>
         </select>
         <select class="bulk-type">
             <option value="general">General</option>
@@ -2284,9 +2543,16 @@ function addBulkRow() {
     row.querySelector('.bulk-remove-btn').addEventListener('click', () => {
         row.remove();
         updateBulkRowNumbers();
+        updateBulkCount();
+    });
+    
+    // Add input handlers to update count
+    row.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', updateBulkCount);
     });
     
     container.appendChild(row);
+    updateBulkCount();
 }
 
 function updateBulkRowNumbers() {
@@ -2539,6 +2805,9 @@ function initEventListeners() {
     // Add Question Modal
     elements.openAddQuestionBtn.addEventListener('click', openAddQuestionModal);
     elements.closeAddQuestionBtn.addEventListener('click', closeAddQuestionModal);
+    if (elements.closeAddQuestionBtn3) {
+        elements.closeAddQuestionBtn3.addEventListener('click', closeAddQuestionModal);
+    }
     elements.addQuestionModal.addEventListener('click', (e) => {
         if (e.target === elements.addQuestionModal) {
             closeAddQuestionModal();
@@ -2547,10 +2816,17 @@ function initEventListeners() {
     
     elements.addQuestionForm.addEventListener('submit', addQuestion);
     
-    // Bulk add mode toggle
-    if (elements.bulkAddBtn) {
-        elements.bulkAddBtn.addEventListener('click', toggleBulkAddMode);
+    // Question Manager Tabs
+    initQuestionTabs();
+    
+    // Answer Options - Add Option button
+    if (elements.addOptionBtn) {
+        elements.addOptionBtn.addEventListener('click', () => addAnswerOption());
     }
+    
+    // Initialize answer options on page load
+    initAnswerOptions();
+    
     if (elements.addBulkRowBtn) {
         elements.addBulkRowBtn.addEventListener('click', addBulkRow);
     }
@@ -2583,6 +2859,9 @@ function initEventListeners() {
     elements.resetScoresBtn.addEventListener('click', resetScores);
     if (elements.resetQuestionsBtn) {
         elements.resetQuestionsBtn.addEventListener('click', resetQuestions);
+    }
+    if (elements.endGameBtn) {
+        elements.endGameBtn.addEventListener('click', endGame);
     }
     
     // Single mode controls
@@ -2730,13 +3009,341 @@ function init() {
     
     initEventListeners();
     initAccordion();
+    initThemes(); // Initialize theme system
+    initWelcomeScreen(); // Initialize welcome/setup screen
     updateTeamInputs();
     updateScoreboard();
     updateQuestionCounter();
-    setGameMode(state.gameMode);
+    
+    // Only show game if already started (from saved state)
+    if (state.gameStarted && !state.gameEnded) {
+        showGameScreen();
+        setGameMode(state.gameMode);
+    } else if (state.gameEnded) {
+        showGameOverScreen();
+    }
     
     // Register service worker for offline support
     registerServiceWorker();
+}
+
+// ==================== WELCOME SCREEN ====================
+function initWelcomeScreen() {
+    // Render initial team setup
+    renderSetupTeams();
+    
+    // Mode selection
+    if (elements.setupSingleMode) {
+        elements.setupSingleMode.addEventListener('click', () => {
+            state.gameMode = 'single';
+            elements.setupSingleMode.classList.add('active');
+            elements.setupJeopardyMode.classList.remove('active');
+        });
+    }
+    
+    if (elements.setupJeopardyMode) {
+        elements.setupJeopardyMode.addEventListener('click', () => {
+            state.gameMode = 'jeopardy';
+            elements.setupJeopardyMode.classList.add('active');
+            elements.setupSingleMode.classList.remove('active');
+        });
+    }
+    
+    // Add team button
+    if (elements.addTeamBtn) {
+        elements.addTeamBtn.addEventListener('click', () => {
+            if (state.teams.length < 6) {
+                const newTeam = {
+                    name: `Team ${state.teams.length + 1}`,
+                    score: 0,
+                    color: TEAM_COLORS[state.teams.length % TEAM_COLORS.length]
+                };
+                state.teams.push(newTeam);
+                state.teamCount = state.teams.length;
+                renderSetupTeams();
+                updateTeamCountLabel();
+            }
+        });
+    }
+    
+    // Start game button
+    if (elements.startGameBtn) {
+        elements.startGameBtn.addEventListener('click', startGame);
+    }
+    
+    // Play again button
+    if (elements.playAgainBtn) {
+        elements.playAgainBtn.addEventListener('click', playAgain);
+    }
+    
+    // New game button
+    if (elements.newGameBtn) {
+        elements.newGameBtn.addEventListener('click', newGame);
+    }
+}
+
+function renderSetupTeams() {
+    if (!elements.setupTeamGrid) return;
+    
+    elements.setupTeamGrid.innerHTML = '';
+    
+    state.teams.forEach((team, index) => {
+        const card = document.createElement('div');
+        card.className = 'team-setup-card';
+        card.innerHTML = `
+            <div class="team-color-dot" style="background: ${team.color}" data-index="${index}"></div>
+            <input type="text" class="team-name-input" value="${team.name}" placeholder="Team name" data-index="${index}">
+            ${state.teams.length > 1 ? `<button class="team-remove-btn" data-index="${index}">&times;</button>` : ''}
+        `;
+        elements.setupTeamGrid.appendChild(card);
+    });
+    
+    // Add event listeners for name changes
+    elements.setupTeamGrid.querySelectorAll('.team-name-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            state.teams[index].name = e.target.value || `Team ${index + 1}`;
+        });
+    });
+    
+    // Add event listeners for remove buttons
+    elements.setupTeamGrid.querySelectorAll('.team-remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            state.teams.splice(index, 1);
+            state.teamCount = state.teams.length;
+            renderSetupTeams();
+            updateTeamCountLabel();
+        });
+    });
+    
+    // Add event listeners for color dots (cycle colors)
+    elements.setupTeamGrid.querySelectorAll('.team-color-dot').forEach(dot => {
+        dot.addEventListener('click', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            const currentColorIndex = TEAM_COLORS.indexOf(state.teams[index].color);
+            const nextColorIndex = (currentColorIndex + 1) % TEAM_COLORS.length;
+            state.teams[index].color = TEAM_COLORS[nextColorIndex];
+            e.target.style.background = TEAM_COLORS[nextColorIndex];
+        });
+    });
+    
+    updateTeamCountLabel();
+}
+
+function updateTeamCountLabel() {
+    if (elements.teamCountLabel) {
+        const count = state.teams.length;
+        elements.teamCountLabel.textContent = count === 1 ? '1 team' : `${count} teams`;
+    }
+}
+
+function startGame() {
+    // Apply settings from setup screen
+    if (elements.setupRandomize) {
+        state.questionOrder = elements.setupRandomize.checked ? 'randomized' : 'ordered';
+        if (elements.questionOrder) {
+            elements.questionOrder.value = state.questionOrder;
+        }
+    }
+    
+    if (elements.setupSound) {
+        state.volume = elements.setupSound.checked ? 0.5 : 0;
+        updateVolumeUI();
+    }
+    
+    // Sync team count to sidebar
+    if (elements.teamCount) {
+        elements.teamCount.value = state.teamCount.toString();
+    }
+    
+    state.gameStarted = true;
+    state.gameEnded = false;
+    saveState();
+    
+    showGameScreen();
+    setGameMode(state.gameMode);
+    updateTeamInputs();
+    updateScoreboard();
+}
+
+function showGameScreen() {
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.classList.add('hidden');
+    }
+    if (elements.gameOverScreen) {
+        elements.gameOverScreen.classList.add('hidden');
+    }
+    if (elements.gameHeader) {
+        elements.gameHeader.classList.remove('hidden');
+    }
+    if (elements.singleMode && state.gameMode === 'single') {
+        elements.singleMode.classList.remove('hidden');
+    }
+    if (elements.jeopardyMode && state.gameMode === 'jeopardy') {
+        elements.jeopardyMode.classList.remove('hidden');
+    }
+}
+
+function showWelcomeScreen() {
+    state.gameStarted = false;
+    state.gameEnded = false;
+    
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.classList.remove('hidden');
+    }
+    if (elements.gameOverScreen) {
+        elements.gameOverScreen.classList.add('hidden');
+    }
+    if (elements.gameHeader) {
+        elements.gameHeader.classList.add('hidden');
+    }
+    if (elements.singleMode) {
+        elements.singleMode.classList.add('hidden');
+    }
+    if (elements.jeopardyMode) {
+        elements.jeopardyMode.classList.add('hidden');
+    }
+    
+    renderSetupTeams();
+    saveState();
+}
+
+// ==================== GAME OVER ====================
+function showGameOverScreen() {
+    state.gameEnded = true;
+    saveState();
+    
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.classList.add('hidden');
+    }
+    if (elements.gameHeader) {
+        elements.gameHeader.classList.add('hidden');
+    }
+    if (elements.singleMode) {
+        elements.singleMode.classList.add('hidden');
+    }
+    if (elements.jeopardyMode) {
+        elements.jeopardyMode.classList.add('hidden');
+    }
+    if (elements.gameOverScreen) {
+        elements.gameOverScreen.classList.remove('hidden');
+    }
+    
+    // Sort teams by score
+    const sortedTeams = [...state.teams].sort((a, b) => b.score - a.score);
+    const winner = sortedTeams[0];
+    
+    // Update winner announcement
+    if (elements.winnerAnnouncement && winner) {
+        if (state.teams.length === 1) {
+            elements.winnerAnnouncement.innerHTML = `Final Score: <strong>${winner.score}</strong> points!`;
+        } else {
+            elements.winnerAnnouncement.innerHTML = `Congratulations to <strong>${winner.name}</strong>!`;
+        }
+    }
+    
+    // Render final scores
+    if (elements.finalScores) {
+        elements.finalScores.innerHTML = '';
+        sortedTeams.forEach((team, index) => {
+            const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : 'other';
+            const rankLabel = index === 0 ? '🏆' : (index + 1);
+            
+            const card = document.createElement('div');
+            card.className = `final-score-card ${index === 0 ? 'winner' : ''}`;
+            card.innerHTML = `
+                <div class="final-score-rank ${rankClass}">${rankLabel}</div>
+                <div class="final-score-info">
+                    <div class="final-score-name">${team.name}</div>
+                </div>
+                <div class="final-score-points">${team.score}</div>
+            `;
+            elements.finalScores.appendChild(card);
+        });
+    }
+    
+    // Trigger confetti
+    createConfetti();
+}
+
+function createConfetti() {
+    if (!elements.confettiContainer) return;
+    
+    elements.confettiContainer.innerHTML = '';
+    
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe', '#fd79a8', '#00b894'];
+    const pieceCount = 60;
+    
+    for (let i = 0; i < pieceCount; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = `${Math.random() * 2}s`;
+        piece.style.animationDuration = `${3 + Math.random() * 2}s`;
+        
+        // Random shapes
+        if (Math.random() > 0.5) {
+            piece.style.borderRadius = '50%';
+        } else if (Math.random() > 0.5) {
+            piece.style.borderRadius = '0';
+            piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+        }
+        
+        elements.confettiContainer.appendChild(piece);
+    }
+    
+    // Clean up confetti after animation
+    setTimeout(() => {
+        if (elements.confettiContainer) {
+            elements.confettiContainer.innerHTML = '';
+        }
+    }, 6000);
+}
+
+function playAgain() {
+    // Reset scores but keep teams and questions
+    state.teams.forEach(team => team.score = 0);
+    state.usedQuestions.clear();
+    state.currentQuestion = null;
+    state.currentQuestionIndex = null;
+    state.answerRevealed = false;
+    state.gameEnded = false;
+    
+    saveState();
+    showGameScreen();
+    setGameMode(state.gameMode);
+    updateScoreboard();
+    updateQuestionCounter();
+    
+    // Reset question display
+    if (elements.questionText) {
+        elements.questionText.textContent = 'Press "Next Question" to start!';
+    }
+    if (elements.answersGrid) {
+        elements.answersGrid.innerHTML = '';
+    }
+}
+
+function newGame() {
+    // Full reset - go back to welcome screen
+    state.teams = [{ name: 'Team 1', score: 0, color: TEAM_COLORS[0] }];
+    state.teamCount = 1;
+    state.usedQuestions.clear();
+    state.currentQuestion = null;
+    state.currentQuestionIndex = null;
+    state.answerRevealed = false;
+    state.gameStarted = false;
+    state.gameEnded = false;
+    
+    saveState();
+    showWelcomeScreen();
+}
+
+// Function to trigger game over (can be called from UI)
+function endGame() {
+    showGameOverScreen();
 }
 
 // Register service worker for offline PWA support

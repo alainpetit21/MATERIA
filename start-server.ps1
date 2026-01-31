@@ -1,24 +1,25 @@
-# Start local HTTP server for Question Webapp
-# Usage: .\start-server.ps1 [port]
+# Start local HTTP server for Trivia Quest
+# Usage: .\start-server.ps1 [-Port <port>] [-SkipDB] [-Title <title>]
 
 param(
-    [int]$Port = 8080
+    [int]$Port = 8080,
+    [switch]$SkipDB,
+    [string]$Title = "Trivia Quest"
 )
 
-$Host.UI.RawUI.WindowTitle = "Question Webapp Server"
+$Host.UI.RawUI.WindowTitle = "Trivia Quest Server"
 
 Write-Host ""
 Write-Host "  ╔══════════════════════════════════════╗" -ForegroundColor Magenta
-Write-Host "  ║       Question Webapp Server         ║" -ForegroundColor Magenta
+Write-Host "  ║       Trivia Quest Server         ║" -ForegroundColor Magenta
 Write-Host "  ╚══════════════════════════════════════╝" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Starting server on port $Port..." -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Open in browser:" -ForegroundColor Yellow
-Write-Host "  → http://localhost:$Port" -ForegroundColor Green
-Write-Host ""
-Write-Host "  Press Ctrl+C to stop the server" -ForegroundColor DarkGray
-Write-Host ""
+
+# Get script directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$appDir = Join-Path $scriptDir "app"
+$dataDir = Join-Path $scriptDir "data"
+$dbPath = Join-Path $dataDir "questions.db"
 
 # Try Python 3 first, then Python
 $pythonCmd = $null
@@ -32,12 +33,67 @@ if (Get-Command python3 -ErrorAction SilentlyContinue) {
     exit 1
 }
 
-# Change to app directory and start the HTTP server
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$appDir = Join-Path $scriptDir "app"
-Push-Location $appDir
-try {
-    & $pythonCmd -m http.server $Port
-} finally {
-    Pop-Location
+# Check for Flask
+Write-Host "  Checking dependencies..." -ForegroundColor Cyan
+$flaskCheck = & $pythonCmd -c "import flask; import flask_cors" 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  Installing Flask dependencies..." -ForegroundColor Yellow
+    & $pythonCmd -m pip install flask flask-cors --quiet
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ERROR: Failed to install Flask. Run: pip install flask flask-cors" -ForegroundColor Red
+        exit 1
+    }
 }
+
+Write-Host "  Title: $Title" -ForegroundColor Cyan
+
+# Build database by default (unless skipped)
+if (-not $SkipDB) {
+    Write-Host "  Building SQLite database..." -ForegroundColor Yellow
+    
+    $buildScript = Join-Path $scriptDir "scripts\build_database.py"
+    $questionBank = Join-Path $scriptDir "question_bank"
+    
+    # Create data directory if it doesn't exist
+    if (-not (Test-Path $dataDir)) {
+        New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+    }
+    
+    # Remove existing database to ensure fresh build
+    if (Test-Path $dbPath) {
+        Remove-Item $dbPath -Force
+        Write-Host "  Removed existing database" -ForegroundColor DarkGray
+    }
+    
+    # Set environment variables and run build script
+    $env:DATABASE_PATH = $dbPath
+    $env:QUESTION_BANK_PATH = $questionBank
+    
+    try {
+        & $pythonCmd $buildScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "  ERROR: Database build failed" -ForegroundColor Red
+            exit 1
+        }
+    } catch {
+        Write-Host ""
+        Write-Host "  ERROR: Database build failed - $_" -ForegroundColor Red
+        exit 1
+    }
+    
+    Write-Host "  Database built: $dbPath" -ForegroundColor Green
+} else {
+    Write-Host "  Skipping database build (-SkipDB)" -ForegroundColor DarkGray
+}
+
+Write-Host ""
+
+# Set environment variables for dev server
+$env:PORT = $Port
+$env:DATABASE_PATH = $dbPath
+$env:APP_TITLE = $Title
+
+# Start the Flask dev server
+$devServer = Join-Path $scriptDir "dev-server.py"
+& $pythonCmd $devServer

@@ -1,0 +1,25 @@
+.venv
+__pycache__/
+*.pyc
+*.pyo
+
+# Development/utility scripts not needed for production
+scripts/reorder_jsonl.py
+scripts/add_descriptions.py
+scripts/fetch_questions.py
+scripts/regenerate_ids.py
+# Build artifacts
+*.db
+*.log
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+data/

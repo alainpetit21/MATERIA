@@ -25,13 +25,34 @@ python -m http.server 8000
 ```
 Then open your browser to http://localhost:8000/
 
-Or 
+Or use the helper scripts:
 
 ```powershell
-.\start_server.ps1
+# Start server (builds database automatically)
+.\start-server.ps1
+
+# Custom port
+.\start-server.ps1 -Port 3000
+
+# Custom title
+.\start-server.ps1 -Title "My Trivia Game"
+
+# Skip database rebuild (use existing)
+.\start-server.ps1 -SkipDB
 ```
+
 ```bash
-bash .\start_server.sh
+# Start server (builds database automatically)
+./start-server.sh
+
+# Custom port
+./start-server.sh 3000
+
+# Custom title
+./start-server.sh --title "My Trivia Game"
+
+# Skip database rebuild (use existing)
+./start-server.sh --skip-db
 ```
 Then open your browser to http://localhost:8080/
 
