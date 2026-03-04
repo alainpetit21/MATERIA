@@ -8,6 +8,10 @@ services:
       - APP_TITLE=Trivia Quest
       # Security settings
       - ALLOWED_ORIGINS=*
+      # Quiz mode settings
+      - ADMIN_PASSWORD=admin123
+      - FREEPLAY=false
+      - REQUIRE_USER_PASSWORD=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/", "&&", "wget", "-q", "--spider", "http://localhost/api/health"]
@@ -15,6 +19,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    volumes:
+      - ./data:/data
     # Optional: Mount custom question bank for updates without rebuild
     # volumes:
     #   - ./question_bank:/question_bank:ro
+
+volumes: {}

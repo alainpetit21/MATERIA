@@ -51,8 +51,8 @@ RUN mv /usr/share/nginx/html/index.html /usr/share/nginx/html/index.html.templat
 # Copy API
 COPY api/server.py /app/server.py
 
-# Copy database from builder stage
-COPY --from=db-builder /build/questions.db /data/questions.db
+# Copy database from builder stage to a seed location
+COPY --from=db-builder /build/questions.db /seed/questions.db
 
 # Copy supervisor config
 COPY supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -60,6 +60,11 @@ COPY supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Create startup script that processes template and starts supervisor
 RUN echo '#!/bin/sh' > /start.sh && \
     echo 'set -e' >> /start.sh && \
+    echo '# Seed database into /data if not already present (supports bind mounts)' >> /start.sh && \
+    echo 'if [ ! -f /data/questions.db ]; then' >> /start.sh && \
+    echo '  echo "Seeding database into /data..."' >> /start.sh && \
+    echo '  cp /seed/questions.db /data/questions.db' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
     echo 'envsubst '"'"'${APP_TITLE}'"'"' < /usr/share/nginx/html/index.html.template > /usr/share/nginx/html/index.html' >> /start.sh && \
     echo 'exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /start.sh && \
     chmod +x /start.sh
@@ -68,6 +73,9 @@ RUN echo '#!/bin/sh' > /start.sh && \
 ENV APP_TITLE="Trivia Quest"
 ENV DATABASE_PATH=/data/questions.db
 ENV API_PORT=5000
+ENV ADMIN_PASSWORD=admin123
+ENV FREEPLAY=false
+ENV REQUIRE_USER_PASSWORD=false
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Expose ports

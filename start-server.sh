@@ -5,6 +5,9 @@
 PORT=8080
 SKIP_DB=false
 APP_TITLE="Trivia Quest"
+ADMIN_PASSWORD="admin123"
+FREEPLAY="false"
+REQUIRE_USER_PASSWORD="false"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -16,6 +19,18 @@ while [[ $# -gt 0 ]]; do
         --title)
             APP_TITLE="$2"
             shift 2
+            ;;
+        --admin-password)
+            ADMIN_PASSWORD="$2"
+            shift 2
+            ;;
+        --freeplay)
+            FREEPLAY="true"
+            shift
+            ;;
+        --require-password)
+            REQUIRE_USER_PASSWORD="true"
+            shift
             ;;
         *)
             PORT="$1"
@@ -98,6 +113,9 @@ echo ""
 export PORT="$PORT"
 export DATABASE_PATH="$DB_PATH"
 export APP_TITLE="$APP_TITLE"
+export ADMIN_PASSWORD="$ADMIN_PASSWORD"
+export FREEPLAY="$FREEPLAY"
+export REQUIRE_USER_PASSWORD="$REQUIRE_USER_PASSWORD"
 
 # Start the Flask dev server
 $PYTHON_CMD "$SCRIPT_DIR/dev-server.py"

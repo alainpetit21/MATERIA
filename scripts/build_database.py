@@ -51,6 +51,81 @@ def create_database(db_path: str) -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_questions_difficulty ON questions(difficulty);
         CREATE INDEX IF NOT EXISTS idx_questions_type ON questions(question_type);
         CREATE INDEX IF NOT EXISTS idx_questions_subcategory ON questions(subcategory);
+
+        -- App configuration (runtime toggles)
+        CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Users table
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Quiz sessions (admin-created)
+        CREATE TABLE IF NOT EXISTS quiz_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            is_active INTEGER DEFAULT 0,
+            time_limit_minutes INTEGER,
+            randomize_questions INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Quiz session categories (many-to-many)
+        CREATE TABLE IF NOT EXISTS quiz_session_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            difficulty TEXT,
+            question_limit INTEGER,
+            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES categories(id)
+        );
+
+        -- Individual user answers stored per question
+        CREATE TABLE IF NOT EXISTS user_answers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            session_id INTEGER NOT NULL,
+            question_id INTEGER NOT NULL,
+            selected_answers TEXT NOT NULL,
+            is_correct INTEGER NOT NULL,
+            time_taken_seconds REAL,
+            answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
+            FOREIGN KEY (question_id) REFERENCES questions(id)
+        );
+
+        -- User quiz results summary
+        CREATE TABLE IF NOT EXISTS user_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            session_id INTEGER NOT NULL,
+            total_questions INTEGER NOT NULL DEFAULT 0,
+            correct_answers INTEGER NOT NULL DEFAULT 0,
+            total_time_seconds REAL,
+            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE
+        );
+
+        -- Indexes for quiz tables
+        CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+        CREATE INDEX IF NOT EXISTS idx_quiz_sessions_active ON quiz_sessions(is_active);
+        CREATE INDEX IF NOT EXISTS idx_session_categories ON quiz_session_categories(session_id);
+        CREATE INDEX IF NOT EXISTS idx_user_answers_user ON user_answers(user_id);
+        CREATE INDEX IF NOT EXISTS idx_user_answers_session ON user_answers(session_id);
+        CREATE INDEX IF NOT EXISTS idx_user_results_user ON user_results(user_id);
+        CREATE INDEX IF NOT EXISTS idx_user_results_session ON user_results(session_id);
     ''')
     
     conn.commit()

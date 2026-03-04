@@ -14,6 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- Sidebar Toggle Button -->
@@ -193,6 +194,11 @@
                 <div class="section-content">
                     <div class="theme-selector" id="themeOptions"></div>
                 </div>
+            </section>
+
+            <!-- Admin Access -->
+            <section class="control-section" data-section="admin-access">
+                <button class="btn btn-secondary" id="sidebarAdminBtn" style="width:100%">🔒 Admin Access</button>
             </section>
         </div>
     </aside>
@@ -533,6 +539,239 @@
                 </div>
             </div>
         </div>
+
+        <!-- ==================== QUIZ MODE SCREENS ==================== -->
+
+        <!-- User Registration/Login Screen (Quiz Mode) -->
+        <section class="quiz-auth-screen hidden" id="quizAuthScreen">
+            <div class="quiz-auth-content">
+                <div class="quiz-auth-hero">
+                    <img src="logo.svg" alt="Trivia Quest Logo" class="welcome-logo">
+                    <h1 class="welcome-title">${APP_TITLE}</h1>
+                    <p class="welcome-subtitle" id="quizSessionName">Loading quiz...</p>
+                </div>
+                <div class="setup-card quiz-auth-card">
+                    <div class="quiz-auth-tabs">
+                        <button class="quiz-auth-tab active" data-auth-tab="register" id="authRegisterTab">Register</button>
+                        <button class="quiz-auth-tab" data-auth-tab="login" id="authLoginTab">Sign In</button>
+                    </div>
+                    <div class="quiz-auth-form" id="registerForm">
+                        <div class="form-group">
+                            <label for="regUsername">Username</label>
+                            <input type="text" id="regUsername" placeholder="Enter your name..." maxlength="30" autocomplete="off">
+                        </div>
+                        <div class="form-group hidden" id="regPasswordGroup">
+                            <label for="regPassword">Password</label>
+                            <input type="password" id="regPassword" placeholder="Choose a password..." minlength="4">
+                        </div>
+                        <button class="btn btn-primary btn-lg" id="registerBtn" style="width:100%">
+                            <span class="btn-icon">✏️</span> Register & Start Quiz
+                        </button>
+                        <p class="quiz-auth-error hidden" id="registerError"></p>
+                    </div>
+                    <div class="quiz-auth-form hidden" id="loginForm">
+                        <div class="form-group">
+                            <label for="loginUsername">Username</label>
+                            <input type="text" id="loginUsername" placeholder="Enter your username..." maxlength="30" autocomplete="off">
+                        </div>
+                        <div class="form-group hidden" id="loginPasswordGroup">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" placeholder="Enter your password...">
+                        </div>
+                        <button class="btn btn-primary btn-lg" id="loginBtn" style="width:100%">
+                            <span class="btn-icon">🔑</span> Sign In & Continue
+                        </button>
+                        <p class="quiz-auth-error hidden" id="loginError"></p>
+                    </div>
+                    <div class="quiz-auth-footer">
+                        <button class="btn btn-accent btn-sm hidden" id="freeplayBtn">🎮 Play Freeplay</button>
+                        <button class="btn btn-secondary btn-sm" id="adminAccessBtn">🔒 Admin Access</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quiz Taking Screen -->
+        <section class="quiz-play-screen hidden" id="quizPlayScreen">
+            <header class="quiz-play-header">
+                <div class="quiz-play-info">
+                    <img src="logo.svg" alt="Logo" class="header-logo">
+                    <div>
+                        <h1 class="quiz-play-title" id="quizPlayTitle">Quiz</h1>
+                        <span class="quiz-play-user" id="quizPlayUser">User</span>
+                    </div>
+                </div>
+                <div class="quiz-play-progress">
+                    <span class="quiz-progress-text" id="quizProgressText">0 / 0</span>
+                    <div class="quiz-progress-bar">
+                        <div class="quiz-progress-fill" id="quizProgressFill" style="width:0%"></div>
+                    </div>
+                </div>
+            </header>
+            <div class="quiz-play-area">
+                <div class="question-card quiz-question-card" id="quizQuestionCard">
+                    <div class="question-meta">
+                        <span class="category-badge" id="quizCategory">Category</span>
+                        <span class="difficulty-badge" id="quizDifficulty">L1</span>
+                        <span class="quiz-timer hidden" id="quizTimer">--:--</span>
+                    </div>
+                    <p class="question-text" id="quizQuestionText">Loading...</p>
+                    <div class="answers-grid" id="quizAnswersGrid"></div>
+                    <div class="answer-description hidden" id="quizDescription"></div>
+                    <div class="question-actions">
+                        <button class="btn btn-primary" id="quizNextBtn" disabled>Next Question</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quiz Complete Screen -->
+        <section class="quiz-complete-screen hidden" id="quizCompleteScreen">
+            <div class="quiz-complete-content">
+                <div class="trophy-icon" id="quizTrophy">🏆</div>
+                <h1 class="game-over-title">Quiz Complete!</h1>
+                <div class="quiz-result-card">
+                    <div class="quiz-result-score" id="quizResultScore">0%</div>
+                    <div class="quiz-result-detail" id="quizResultDetail">0 / 0 correct</div>
+                    <div class="quiz-result-time" id="quizResultTime"></div>
+                </div>
+                <div class="quiz-result-breakdown" id="quizResultBreakdown"></div>
+                <div class="game-over-actions">
+                    <button class="btn btn-secondary" id="quizBackToLogin">
+                        <span class="btn-icon">🏠</span> Back
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Login Modal -->
+        <div class="modal-overlay hidden" id="adminLoginModal" role="dialog" aria-modal="true">
+            <div class="modal-content" style="max-width:400px">
+                <h2 style="margin-bottom:1rem">🔒 Admin Login</h2>
+                <div class="form-group">
+                    <label for="adminPassword">Password</label>
+                    <input type="password" id="adminPassword" placeholder="Enter admin password...">
+                </div>
+                <p class="quiz-auth-error hidden" id="adminLoginError"></p>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="adminLoginBtn">Login</button>
+                    <button class="btn btn-secondary" id="adminLoginCancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <section class="admin-panel hidden" id="adminPanel">
+            <header class="admin-header">
+                <div class="admin-header-left">
+                    <img src="logo.svg" alt="Logo" class="header-logo">
+                    <h1>Admin Panel</h1>
+                </div>
+                <div class="admin-header-right">
+                    <button class="btn btn-secondary btn-sm" id="adminToggleFreeplay">Toggle Freeplay</button>
+                    <button class="btn btn-secondary btn-sm" id="adminLogoutBtn">Logout</button>
+                </div>
+            </header>
+            <div class="admin-tabs">
+                <button class="admin-tab active" data-admin-tab="sessions">📋 Sessions</button>
+                <button class="admin-tab" data-admin-tab="results">📊 Results</button>
+                <button class="admin-tab" data-admin-tab="users">👥 Users</button>
+            </div>
+            <div class="admin-content">
+                <!-- Sessions Tab -->
+                <div class="admin-tab-content active" id="adminSessionsTab">
+                    <div class="admin-section-header">
+                        <h2>Quiz Sessions</h2>
+                        <button class="btn btn-primary btn-sm" id="createSessionBtn">+ New Session</button>
+                    </div>
+                    <div id="sessionsList" class="sessions-list">
+                        <p class="empty-state">No sessions created yet.</p>
+                    </div>
+
+                    <!-- Create/Edit Session Form -->
+                    <div class="admin-form-card hidden" id="sessionFormCard">
+                        <h3 id="sessionFormTitle">Create Quiz Session</h3>
+                        <div class="form-group">
+                            <label for="sessionName">Session Name</label>
+                            <input type="text" id="sessionName" placeholder="e.g., Week 1 Quiz">
+                        </div>
+                        <div class="form-group">
+                            <label for="sessionDesc">Description (optional)</label>
+                            <input type="text" id="sessionDesc" placeholder="Brief description...">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sessionTimeLimit">Time Limit (minutes)</label>
+                                <input type="number" id="sessionTimeLimit" min="0" placeholder="0 = no limit">
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="sessionRandomize">
+                                    Randomize Questions
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Categories</label>
+                            <div id="sessionCategoryPicker" class="category-picker">
+                                <p class="loading-state">Loading categories...</p>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn btn-primary" id="saveSessionBtn">Save Session</button>
+                            <button class="btn btn-secondary" id="cancelSessionBtn">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Tab -->
+                <div class="admin-tab-content hidden" id="adminResultsTab">
+                    <div class="admin-section-header">
+                        <h2>Results & Analytics</h2>
+                        <div class="admin-actions">
+                            <select id="resultsSessionFilter" class="admin-select">
+                                <option value="">All Sessions</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" id="exportSummaryBtn">📥 Export Summary</button>
+                            <button class="btn btn-secondary btn-sm" id="exportDetailedBtn">📥 Export Detailed</button>
+                        </div>
+                    </div>
+                    <div class="results-charts" id="resultsCharts">
+                        <div class="chart-card">
+                            <h3>User Scores</h3>
+                            <canvas id="userScoresChart"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Category Accuracy</h3>
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Difficulty Breakdown</h3>
+                            <canvas id="difficultyChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="results-table-section">
+                        <h3>Individual Results</h3>
+                        <div id="resultsTable" class="results-table">
+                            <p class="empty-state">No results yet.</p>
+                        </div>
+                    </div>
+                    <div class="activity-section" id="quizActivity">
+                        <p class="empty-state">No in-progress quizzes right now.</p>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div class="admin-tab-content hidden" id="adminUsersTab">
+                    <div class="admin-section-header">
+                        <h2>Registered Users</h2>
+                    </div>
+                    <div id="usersTable" class="users-table">
+                        <p class="empty-state">No users registered yet.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Team Scoreboard -->
@@ -559,5 +798,6 @@
 
     <script src="themes.js"></script>
     <script src="app.js"></script>
+    <script src="quiz-mode.js"></script>
 </body>
 </html>

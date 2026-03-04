@@ -4,7 +4,10 @@
 param(
     [int]$Port = 8080,
     [switch]$SkipDB,
-    [string]$Title = "Trivia Quest"
+    [string]$Title = "Trivia Quest",
+    [string]$AdminPassword = "admin123",
+    [string]$Freeplay = "false",
+    [string]$RequireUserPassword = "false"
 )
 
 $Host.UI.RawUI.WindowTitle = "Trivia Quest Server"
@@ -93,6 +96,9 @@ Write-Host ""
 $env:PORT = $Port
 $env:DATABASE_PATH = $dbPath
 $env:APP_TITLE = $Title
+$env:ADMIN_PASSWORD = $AdminPassword
+$env:FREEPLAY = $Freeplay
+$env:REQUIRE_USER_PASSWORD = $RequireUserPassword
 
 # Start the Flask dev server
 $devServer = Join-Path $scriptDir "dev-server.py"
