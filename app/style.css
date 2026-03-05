@@ -296,6 +296,7 @@ h2, h3 {
 
 input[type="text"],
 input[type="number"],
+input[type="password"],
 textarea,
 select {
     width: 100%;
@@ -3103,9 +3104,32 @@ body.presentation-mode .jeopardy-board {
     color: var(--foreground);
 }
 
+.quiz-play-user-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .quiz-play-user {
     font-size: 0.85rem;
     color: var(--muted-foreground);
+}
+
+.quiz-logout-btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.quiz-logout-btn:hover {
+    opacity: 1;
+    color: var(--foreground);
 }
 
 .quiz-play-progress {

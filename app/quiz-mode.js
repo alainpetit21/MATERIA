@@ -87,6 +87,7 @@
     function showFreeplayMode() {
         // Show all normal app elements, hide quiz-specific ones
         show($('sidebarToggle'));
+        show($('sidebar'));
         hide($('quizAuthScreen'));
         hide($('quizPlayScreen'));
         hide($('quizCompleteScreen'));
@@ -127,6 +128,14 @@
         hideAllScreens();
         show($('quizAuthScreen'));
         loadActiveSessionInfo();
+        // Show password fields if required
+        if (quizState.config?.requireUserPassword) {
+            show($('regPasswordGroup'));
+            show($('loginPasswordGroup'));
+        } else {
+            hide($('regPasswordGroup'));
+            hide($('loginPasswordGroup'));
+        }
         // Show freeplay button if freeplay is enabled
         if (quizState.config?.freeplay) {
             show($('freeplayBtn'));
@@ -162,12 +171,6 @@
             hide($('registerForm'));
             show($('loginForm'));
         });
-
-        // Show password fields if required
-        if (quizState.config?.requireUserPassword) {
-            show($('regPasswordGroup'));
-            show($('loginPasswordGroup'));
-        }
 
         // Register
         $('registerBtn')?.addEventListener('click', async () => {
@@ -614,6 +617,7 @@
     function showAdminPanel() {
         hideAllScreens();
         show($('sidebarToggle'));
+        show($('sidebar'));
         show($('adminPanel'));
         loadAdminData();
     }
@@ -682,8 +686,8 @@
         // Results session filter
         $('resultsSessionFilter')?.addEventListener('change', loadResults);
 
-        // Quiz back button
-        $('quizBackToLogin')?.addEventListener('click', () => {
+        // Quiz back / logout buttons
+        const doLogout = () => {
             quizState.user = null;
             sessionStorage.removeItem('tq_user');
             quizState.answeredIds.clear();
@@ -691,7 +695,9 @@
             quizState.correctCount = 0;
             quizState.currentIndex = 0;
             showAuthScreen();
-        });
+        };
+        $('quizBackToLogin')?.addEventListener('click', doLogout);
+        $('quizLogoutBtn')?.addEventListener('click', doLogout);
 
         // Quiz next button
         $('quizNextBtn')?.addEventListener('click', () => {

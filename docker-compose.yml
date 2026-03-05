@@ -11,7 +11,7 @@ services:
       # Quiz mode settings
       - ADMIN_PASSWORD=admin123
       - FREEPLAY=false
-      - REQUIRE_USER_PASSWORD=false
+      - REQUIRE_USER_PASSWORD=true
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/", "&&", "wget", "-q", "--spider", "http://localhost/api/health"]
