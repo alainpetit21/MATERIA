@@ -3228,6 +3228,7 @@ function init() {
     initAccordion();
     initThemes(); // Initialize theme system
     initWelcomeScreen(); // Initialize welcome/setup screen
+    resolveAppTitle(); // Replace ${APP_TITLE} placeholders when not processed by envsubst
     initShortcutsHelp(); // Initialize keyboard shortcuts help
     updateTeamInputs();
     updateScoreboard();

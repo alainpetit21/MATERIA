@@ -7,20 +7,43 @@
     <link rel="icon" type="image/svg+xml" href="logo.svg">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#8b5cf6">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="logo.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="chart.umd.min.js"></script>
 </head>
 <body>
-    <!-- Sidebar Toggle Button -->
-    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-        <span class="hamburger"></span>
-    </button>
+    <!-- App Navigation Bar -->
+    <nav class="app-nav hidden" id="appNav">
+        <button class="app-nav-hamburger hidden" id="sidebarToggle" aria-label="Toggle sidebar">
+            <span class="hamburger"></span>
+        </button>
+        <div class="app-nav-brand">
+            <img src="logo.svg" alt="Logo" class="app-nav-logo">
+            <span class="app-nav-title">${APP_TITLE}</span>
+        </div>
+        <div class="app-nav-links" id="appNavLinks">
+            <button class="app-nav-link" id="navQuiz" data-nav="quiz">🎯 Quiz</button>
+            <button class="app-nav-link" id="navFreeplay" data-nav="freeplay">🎮 Freeplay</button>
+            <button class="app-nav-link" id="navAdmin" data-nav="admin">⚙ Admin</button>
+        </div>
+        <div class="app-nav-counter hidden" id="questionCounter" aria-live="polite" aria-atomic="true">
+            <span class="counter-number" id="remainingCount">0</span>
+            <span class="counter-label">remaining</span>
+        </div>
+        <div class="app-nav-user hidden" id="navUser">
+            <button class="app-nav-profile" id="navProfile" title="My Profile">
+                <span class="app-nav-avatar" id="navUserAvatar"></span>
+                <span class="app-nav-username" id="navUserName">User</span>
+            </button>
+            <button class="app-nav-signout" id="navSignOut" title="Sign out">Sign Out</button>
+        </div>
+        <button class="app-nav-signin hidden" id="navSignIn" title="Sign in">Sign In</button>
+    </nav>
 
     <!-- Left Sidebar -->
     <aside class="sidebar" id="sidebar">
@@ -196,10 +219,7 @@
                 </div>
             </section>
 
-            <!-- Admin Access -->
-            <section class="control-section" data-section="admin-access">
-                <button class="btn btn-secondary" id="sidebarAdminBtn" style="width:100%">🔒 Admin Access</button>
-            </section>
+
         </div>
     </aside>
 
@@ -291,17 +311,7 @@
             </div>
         </section>
 
-        <!-- Header -->
-        <header class="game-header hidden" id="gameHeader">
-            <div class="logo-title">
-                <img src="logo.svg" alt="MV Logo" class="header-logo">
-                <h1 class="game-title">${APP_TITLE}</h1>
-            </div>
-            <div class="question-counter" id="questionCounter" aria-live="polite" aria-atomic="true">
-                <span class="counter-number" id="remainingCount">0</span>
-                <span class="counter-label">questions remaining</span>
-            </div>
-        </header>
+
 
         <!-- Single Question Mode -->
         <section class="game-area single-mode hidden" id="singleMode">
@@ -555,62 +565,50 @@
                         <button class="quiz-auth-tab active" data-auth-tab="register" id="authRegisterTab">Register</button>
                         <button class="quiz-auth-tab" data-auth-tab="login" id="authLoginTab">Sign In</button>
                     </div>
-                    <div class="quiz-auth-form" id="registerForm">
+                    <form class="quiz-auth-form" id="registerForm" autocomplete="on">
                         <div class="form-group">
                             <label for="regUsername">Username</label>
-                            <input type="text" id="regUsername" placeholder="Enter your name..." maxlength="30" autocomplete="off">
+                            <input type="text" id="regUsername" name="username" placeholder="Enter your name..." maxlength="30" autocomplete="username">
                         </div>
                         <div class="form-group hidden" id="regPasswordGroup">
                             <label for="regPassword">Password</label>
-                            <input type="password" id="regPassword" placeholder="Choose a password..." minlength="4">
+                            <input type="password" id="regPassword" name="password" placeholder="Choose a password..." minlength="4" autocomplete="new-password">
                         </div>
-                        <button class="btn btn-primary btn-lg" id="registerBtn" style="width:100%">
+                        <button type="submit" class="btn btn-primary btn-lg" id="registerBtn" style="width:100%">
                             <span class="btn-icon">✏️</span> Register & Start Quiz
                         </button>
                         <p class="quiz-auth-error hidden" id="registerError"></p>
-                    </div>
-                    <div class="quiz-auth-form hidden" id="loginForm">
+                    </form>
+                    <form class="quiz-auth-form hidden" id="loginForm" autocomplete="on">
                         <div class="form-group">
                             <label for="loginUsername">Username</label>
-                            <input type="text" id="loginUsername" placeholder="Enter your username..." maxlength="30" autocomplete="off">
+                            <input type="text" id="loginUsername" name="username" placeholder="Enter your username..." maxlength="30" autocomplete="username">
                         </div>
                         <div class="form-group hidden" id="loginPasswordGroup">
                             <label for="loginPassword">Password</label>
-                            <input type="password" id="loginPassword" placeholder="Enter your password...">
+                            <input type="password" id="loginPassword" name="password" placeholder="Enter your password..." autocomplete="current-password">
                         </div>
-                        <button class="btn btn-primary btn-lg" id="loginBtn" style="width:100%">
+                        <button type="submit" class="btn btn-primary btn-lg" id="loginBtn" style="width:100%">
                             <span class="btn-icon">🔑</span> Sign In & Continue
                         </button>
                         <p class="quiz-auth-error hidden" id="loginError"></p>
-                    </div>
-                    <div class="quiz-auth-footer">
-                        <button class="btn btn-accent btn-sm hidden" id="freeplayBtn">🎮 Play Freeplay</button>
-                        <button class="btn btn-secondary btn-sm" id="adminAccessBtn">🔒 Admin Access</button>
-                    </div>
+                    </form>
+
                 </div>
             </div>
         </section>
 
         <!-- Quiz Taking Screen -->
         <section class="quiz-play-screen hidden" id="quizPlayScreen">
-            <header class="quiz-play-header">
-                <div class="quiz-play-info">
-                    <img src="logo.svg" alt="Logo" class="header-logo">
-                    <div>
-                        <h1 class="quiz-play-title" id="quizPlayTitle">Quiz</h1>
-                        <div class="quiz-play-user-bar">
-                            <span class="quiz-play-user" id="quizPlayUser">User</span>
-                            <button class="quiz-logout-btn" id="quizLogoutBtn" title="Log out">↩ Logout</button>
-                        </div>
-                    </div>
-                </div>
+            <div class="quiz-play-topbar">
+                <span class="quiz-play-session" id="quizPlayTitle">Quiz</span>
                 <div class="quiz-play-progress">
                     <span class="quiz-progress-text" id="quizProgressText">0 / 0</span>
                     <div class="quiz-progress-bar">
                         <div class="quiz-progress-fill" id="quizProgressFill" style="width:0%"></div>
                     </div>
                 </div>
-            </header>
+            </div>
             <div class="quiz-play-area">
                 <div class="question-card quiz-question-card" id="quizQuestionCard">
                     <div class="question-meta">
@@ -640,12 +638,111 @@
                 </div>
                 <div class="quiz-result-breakdown" id="quizResultBreakdown"></div>
                 <div class="game-over-actions">
-                    <button class="btn btn-secondary" id="quizBackToLogin">
-                        <span class="btn-icon">🏠</span> Back
+                    <button class="btn btn-primary" id="quizRetakeBtn">
+                        <span class="btn-icon">🔄</span> Retake Quiz
                     </button>
                 </div>
             </div>
         </section>
+
+        <!-- User Profile Modal -->
+        <div class="modal-overlay hidden" id="userProfileModal" role="dialog" aria-modal="true">
+            <div class="modal-content" style="max-width:460px">
+                <h2 style="margin-bottom:1rem">👤 My Profile</h2>
+                <div class="profile-header">
+                    <div class="profile-avatar" id="profileAvatar">?</div>
+                    <div class="profile-summary">
+                        <span class="profile-username" id="profileUsername">username</span>
+                        <span class="profile-joined" id="profileJoined">Joined: -</span>
+                    </div>
+                </div>
+                <div class="profile-stats">
+                    <div class="profile-stat"><span class="profile-stat-value" id="profileQuizCount">0</span><span class="profile-stat-label">Quizzes</span></div>
+                    <div class="profile-stat"><span class="profile-stat-value" id="profileAvgScore">0%</span><span class="profile-stat-label">Avg Score</span></div>
+                    <div class="profile-stat"><span class="profile-stat-value" id="profileLastActive">-</span><span class="profile-stat-label">Last Active</span></div>
+                </div>
+                <div class="form-group">
+                    <label for="profileDisplayName">Display Name</label>
+                    <input type="text" id="profileDisplayName" name="displayName" placeholder="How others see you" maxlength="50" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="profileEmail">Email</label>
+                    <input type="email" id="profileEmail" name="email" placeholder="your@email.com" maxlength="100" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="profileBio">Bio</label>
+                    <textarea id="profileBio" name="bio" placeholder="A short bio..." maxlength="200" rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="profileRole">Role</label>
+                        <input type="text" id="profileRole" name="role" placeholder="e.g. Student, Analyst" maxlength="50" autocomplete="organization-title">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileOrganization">Organization</label>
+                        <input type="text" id="profileOrganization" name="organization" placeholder="Company or school" maxlength="100" autocomplete="organization">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="profilePhone">Phone</label>
+                    <input type="tel" id="profilePhone" name="phone" placeholder="+1 555-0100" maxlength="30" autocomplete="tel">
+                </div>
+                <p class="quiz-auth-error hidden" id="profileError"></p>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="profileSaveBtn">Save</button>
+                    <button class="btn btn-secondary" id="profileCloseBtn">Close</button>
+                </div>
+                <hr style="margin:1rem 0 0.75rem;border-color:var(--border)">
+                <button class="btn btn-sm" id="profileSignOutBtn" style="width:100%;background:var(--destructive);color:#fff">Sign Out</button>
+            </div>
+        </div>
+
+        <!-- Admin Edit User Modal -->
+        <div class="modal-overlay hidden" id="adminEditUserModal" role="dialog" aria-modal="true">
+            <div class="modal-content" style="max-width:460px">
+                <h2 style="margin-bottom:1rem">✏️ Edit User</h2>
+                <input type="hidden" id="editUserId">
+                <div class="form-group">
+                    <label for="editUserUsername">Username</label>
+                    <input type="text" id="editUserUsername" maxlength="30">
+                </div>
+                <div class="form-group">
+                    <label for="editUserDisplayName">Display Name</label>
+                    <input type="text" id="editUserDisplayName" placeholder="Display name" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="editUserEmail">Email</label>
+                    <input type="email" id="editUserEmail" placeholder="Email" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="editUserBio">Bio</label>
+                    <textarea id="editUserBio" placeholder="Bio" maxlength="200" rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editUserRole">Role</label>
+                        <input type="text" id="editUserRole" placeholder="Role" maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="editUserOrganization">Organization</label>
+                        <input type="text" id="editUserOrganization" placeholder="Organization" maxlength="100">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editUserPhone">Phone</label>
+                    <input type="tel" id="editUserPhone" placeholder="Phone" maxlength="30">
+                </div>
+                <div class="form-group">
+                    <label for="editUserPassword">New Password <small>(leave blank to keep current)</small></label>
+                    <input type="password" id="editUserPassword" placeholder="New password...">
+                </div>
+                <p class="quiz-auth-error hidden" id="editUserError"></p>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="editUserSaveBtn">Save Changes</button>
+                    <button class="btn btn-secondary" id="editUserCancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Admin Login Modal -->
         <div class="modal-overlay hidden" id="adminLoginModal" role="dialog" aria-modal="true">
@@ -653,7 +750,7 @@
                 <h2 style="margin-bottom:1rem">🔒 Admin Login</h2>
                 <div class="form-group">
                     <label for="adminPassword">Password</label>
-                    <input type="password" id="adminPassword" placeholder="Enter admin password...">
+                    <input type="password" id="adminPassword" name="password" placeholder="Enter admin password..." autocomplete="current-password">
                 </div>
                 <p class="quiz-auth-error hidden" id="adminLoginError"></p>
                 <div class="modal-actions">
@@ -665,24 +762,40 @@
 
         <!-- Admin Panel -->
         <section class="admin-panel hidden" id="adminPanel">
-            <header class="admin-header">
-                <div class="admin-header-left">
-                    <img src="logo.svg" alt="Logo" class="header-logo">
-                    <h1>Admin Panel</h1>
-                </div>
-                <div class="admin-header-right">
-                    <button class="btn btn-secondary btn-sm" id="adminToggleFreeplay">Toggle Freeplay</button>
-                    <button class="btn btn-secondary btn-sm" id="adminLogoutBtn">Logout</button>
-                </div>
-            </header>
-            <div class="admin-tabs">
-                <button class="admin-tab active" data-admin-tab="sessions">📋 Sessions</button>
-                <button class="admin-tab" data-admin-tab="results">📊 Results</button>
-                <button class="admin-tab" data-admin-tab="users">👥 Users</button>
+            <div class="admin-info-bar">
+                <span class="admin-active-session" id="adminActiveSession">No active session</span>
             </div>
+            <nav class="admin-tabs">
+                <button class="admin-tab active" data-admin-tab="sessions">
+                    📋 <span class="admin-tab-label">Sessions</span>
+                    <span class="admin-tab-badge" id="badgeSessions"></span>
+                </button>
+                <button class="admin-tab" data-admin-tab="results">
+                    📊 <span class="admin-tab-label">Results</span>
+                    <span class="admin-tab-badge" id="badgeResults"></span>
+                </button>
+                <button class="admin-tab" data-admin-tab="users">
+                    👥 <span class="admin-tab-label">Users</span>
+                    <span class="admin-tab-badge" id="badgeUsers"></span>
+                </button>
+                <span class="admin-tab-indicator" id="adminTabIndicator"></span>
+                <button class="admin-logout-btn" id="adminLogoutBtn" title="Logout from admin">🚪 Logout</button>
+            </nav>
             <div class="admin-content">
                 <!-- Sessions Tab -->
                 <div class="admin-tab-content active" id="adminSessionsTab">
+                    <!-- Freeplay Toggle -->
+                    <div class="admin-freeplay-row">
+                        <div class="freeplay-info">
+                            <span class="freeplay-label">Freeplay Mode</span>
+                            <span class="freeplay-desc">Allow users to play without an active session</span>
+                        </div>
+                        <label class="toggle-switch" id="adminToggleFreeplay">
+                            <input type="checkbox" id="freeplayToggleInput">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
                     <div class="admin-section-header">
                         <h2>Quiz Sessions</h2>
                         <button class="btn btn-primary btn-sm" id="createSessionBtn">+ New Session</button>
@@ -693,84 +806,149 @@
 
                     <!-- Create/Edit Session Form -->
                     <div class="admin-form-card hidden" id="sessionFormCard">
-                        <h3 id="sessionFormTitle">Create Quiz Session</h3>
-                        <div class="form-group">
-                            <label for="sessionName">Session Name</label>
-                            <input type="text" id="sessionName" placeholder="e.g., Week 1 Quiz">
+                        <div class="admin-form-header">
+                            <h3 id="sessionFormTitle">Create Quiz Session</h3>
+                            <button class="admin-form-close" id="cancelSessionBtn" title="Close">&times;</button>
                         </div>
-                        <div class="form-group">
-                            <label for="sessionDesc">Description (optional)</label>
-                            <input type="text" id="sessionDesc" placeholder="Brief description...">
-                        </div>
-                        <div class="form-row">
+                        <div class="admin-form-body">
                             <div class="form-group">
-                                <label for="sessionTimeLimit">Time Limit (minutes)</label>
-                                <input type="number" id="sessionTimeLimit" min="0" placeholder="0 = no limit">
+                                <label for="sessionName">Session Name</label>
+                                <input type="text" id="sessionName" placeholder="e.g., Week 1 Quiz">
                             </div>
                             <div class="form-group">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="sessionRandomize">
-                                    Randomize Questions
-                                </label>
+                                <label for="sessionDesc">Description (optional)</label>
+                                <input type="text" id="sessionDesc" placeholder="Brief description...">
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Categories</label>
-                            <div id="sessionCategoryPicker" class="category-picker">
-                                <p class="loading-state">Loading categories...</p>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="sessionTimeLimit">Time Limit (minutes)</label>
+                                    <input type="number" id="sessionTimeLimit" min="0" placeholder="0 = no limit">
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="sessionRandomize">
+                                        Randomize Questions
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        <div class="modal-actions">
-                            <button class="btn btn-primary" id="saveSessionBtn">Save Session</button>
-                            <button class="btn btn-secondary" id="cancelSessionBtn">Cancel</button>
+                            <div class="form-group">
+                                <label>Categories</label>
+                                <div id="sessionCategoryPicker" class="category-picker">
+                                    <p class="loading-state">Loading categories...</p>
+                                </div>
+                            </div>
+                            <div class="admin-form-actions">
+                                <button class="btn btn-primary" id="saveSessionBtn">Save Session</button>
+                                <button class="btn btn-secondary" id="cancelSessionBtn2">Cancel</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Results Tab -->
                 <div class="admin-tab-content hidden" id="adminResultsTab">
-                    <div class="admin-section-header">
-                        <h2>Results & Analytics</h2>
+                    <div class="admin-results-toolbar">
+                        <select id="resultsSessionFilter" class="admin-select">
+                            <option value="">All Sessions</option>
+                        </select>
                         <div class="admin-actions">
-                            <select id="resultsSessionFilter" class="admin-select">
-                                <option value="">All Sessions</option>
-                            </select>
-                            <button class="btn btn-secondary btn-sm" id="exportSummaryBtn">📥 Export Summary</button>
-                            <button class="btn btn-secondary btn-sm" id="exportDetailedBtn">📥 Export Detailed</button>
+                            <button class="btn btn-secondary btn-sm" id="exportSummaryBtn">📥 Summary CSV</button>
+                            <button class="btn btn-secondary btn-sm" id="exportDetailedBtn">📥 Detailed CSV</button>
                         </div>
                     </div>
-                    <div class="results-charts" id="resultsCharts">
-                        <div class="chart-card">
-                            <h3>User Scores</h3>
-                            <canvas id="userScoresChart"></canvas>
+
+                    <!-- Summary Stat Cards -->
+                    <div class="admin-stat-cards" id="adminStatCards">
+                        <div class="stat-card">
+                            <span class="stat-value" id="statTotalQuizzes">0</span>
+                            <span class="stat-label">Quizzes Taken</span>
                         </div>
-                        <div class="chart-card">
-                            <h3>Category Accuracy</h3>
-                            <canvas id="categoryChart"></canvas>
+                        <div class="stat-card">
+                            <span class="stat-value" id="statAvgScore">0%</span>
+                            <span class="stat-label">Avg Score</span>
                         </div>
-                        <div class="chart-card">
-                            <h3>Difficulty Breakdown</h3>
-                            <canvas id="difficultyChart"></canvas>
+                        <div class="stat-card">
+                            <span class="stat-value" id="statPassRate">0%</span>
+                            <span class="stat-label">Pass Rate (≥70%)</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="statTotalQuestions">0</span>
+                            <span class="stat-label">Answers Recorded</span>
                         </div>
                     </div>
-                    <div class="results-table-section">
-                        <h3>Individual Results</h3>
+
+                    <!-- Charts (collapsible) -->
+                    <div class="admin-collapsible">
+                        <button class="admin-collapsible-toggle" id="chartsToggle">
+                            <span>📊 Charts</span>
+                            <span class="collapse-icon" id="chartsCollapseIcon">▾</span>
+                        </button>
+                        <div class="admin-collapsible-body" id="chartsBody">
+                            <div class="results-charts" id="resultsCharts">
+                                <div class="chart-card">
+                                    <h3>User Scores</h3>
+                                    <canvas id="userScoresChart"></canvas>
+                                </div>
+                                <div class="chart-card">
+                                    <h3>Category Accuracy</h3>
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
+                                <div class="chart-card">
+                                    <h3>Difficulty Breakdown</h3>
+                                    <canvas id="difficultyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <h3>Individual Results</h3>
+                        </div>
                         <div id="resultsTable" class="results-table">
                             <p class="empty-state">No results yet.</p>
                         </div>
                     </div>
-                    <div class="activity-section" id="quizActivity">
-                        <p class="empty-state">No in-progress quizzes right now.</p>
+
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <h3>📡 Live Activity</h3>
+                        </div>
+                        <div id="quizActivity">
+                            <p class="empty-state">No in-progress quizzes right now.</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Users Tab -->
                 <div class="admin-tab-content hidden" id="adminUsersTab">
+                    <div class="admin-stat-cards" id="userStatCards">
+                        <div class="stat-card">
+                            <span class="stat-value" id="statTotalUsers">0</span>
+                            <span class="stat-label">Total Users</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="statActiveUsers">0</span>
+                            <span class="stat-label">Active (7 days)</span>
+                        </div>
+                    </div>
                     <div class="admin-section-header">
                         <h2>Registered Users</h2>
+                        <div class="admin-search-wrap">
+                            <input type="text" id="userSearchInput" class="admin-search" placeholder="Search users...">
+                        </div>
                     </div>
-                    <div id="usersTable" class="users-table">
-                        <p class="empty-state">No users registered yet.</p>
+                    <div class="users-list">
+                        <div class="users-list-header">
+                            <span class="ul-col ul-col-user">User</span>
+                            <span class="ul-col ul-col-role">Role / Org</span>
+                            <span class="ul-col ul-col-contact">Contact</span>
+                            <span class="ul-col ul-col-stats">Stats</span>
+                            <span class="ul-col ul-col-actions">Actions</span>
+                        </div>
+                        <div id="usersTable" class="users-list-body">
+                            <p class="empty-state">No users registered yet.</p>
+                        </div>
                     </div>
                 </div>
             </div>

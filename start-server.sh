@@ -1,121 +1,90 @@
-#!/bin/bash
-# Start local HTTP server for Trivia Quest
-# Usage: ./start-server.sh [port] [--skip-db] [--title "Custom Title"]
+#!/usr/bin/env bash
+# Start and stop the Trivia Quest Docker environment.
+#
+# Usage:
+#   ./start-server.sh [start|stop|restart|status]
+#
+# Examples:
+#   ./start-server.sh
+#   ./start-server.sh stop
+#   ./start-server.sh restart
+#   ./start-server.sh status
 
-PORT=8080
-SKIP_DB=false
-APP_TITLE="Trivia Quest"
-ADMIN_PASSWORD="admin123"
-FREEPLAY="false"
-REQUIRE_USER_PASSWORD="false"
+set -euo pipefail
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --skip-db)
-            SKIP_DB=true
-            shift
-            ;;
-        --title)
-            APP_TITLE="$2"
-            shift 2
-            ;;
-        --admin-password)
-            ADMIN_PASSWORD="$2"
-            shift 2
-            ;;
-        --freeplay)
-            FREEPLAY="true"
-            shift
-            ;;
-        --require-password)
-            REQUIRE_USER_PASSWORD="true"
-            shift
-            ;;
-        *)
-            PORT="$1"
-            shift
-            ;;
-    esac
-done
+PROJECT_NAME="Trivia Quest"
+PROJECT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="docker-compose.yml"
+PORT=3002
+URL="http://localhost:$PORT"
+
+# ── colours ──────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+CYAN='\033[0;36m'; WHITE='\033[1;37m'; GREY='\033[1;30m'; NC='\033[0m'
+
+# ── helpers ──────────────────────────────────────────────────────
+check_port() {
+    (echo >/dev/tcp/localhost/"$1") 2>/dev/null
+}
+
+start_project() {
+    printf "\n${CYAN}>> Starting %s ...${NC}\n" "$PROJECT_NAME"
+    pushd "$PROJECT_PATH" >/dev/null
+    if docker compose -f "$COMPOSE_FILE" up --build -d; then
+        printf "   ${GREEN}OK  %s -> %s${NC}\n" "$PROJECT_NAME" "$URL"
+    else
+        printf "   ${RED}FAIL  %s${NC}\n" "$PROJECT_NAME"
+    fi
+    popd >/dev/null
+}
+
+stop_project() {
+    printf "\n${YELLOW}>> Stopping %s ...${NC}\n" "$PROJECT_NAME"
+    pushd "$PROJECT_PATH" >/dev/null
+    if docker compose -f "$COMPOSE_FILE" down; then
+        printf "   ${GREEN}OK  %s stopped${NC}\n" "$PROJECT_NAME"
+    else
+        printf "   ${RED}FAIL  Could not stop %s${NC}\n" "$PROJECT_NAME"
+    fi
+    popd >/dev/null
+}
+
+show_status() {
+    if check_port "$PORT"; then
+        printf "  ${GREEN}[UP]    %-25s %s${NC}\n" "$PROJECT_NAME" "$URL"
+    else
+        printf "  ${GREY}[DOWN]  %-25s port %s${NC}\n" "$PROJECT_NAME" "$PORT"
+    fi
+}
+
+# ── execute ──────────────────────────────────────────────────────
+ACTION="${1:-start}"
+
+case "$ACTION" in
+    start|stop|restart|status) ;;
+    *) echo "Usage: $0 [start|stop|restart|status]"; exit 1 ;;
+esac
+
+printf "\n${WHITE}=== Trivia Quest ===${NC}\n"
+
+case "$ACTION" in
+    start)
+        start_project
+        printf "\n${WHITE}--- Status ---${NC}\n"
+        show_status
+        ;;
+    stop)
+        stop_project
+        ;;
+    restart)
+        stop_project
+        start_project
+        printf "\n${WHITE}--- Status ---${NC}\n"
+        show_status
+        ;;
+    status)
+        show_status
+        ;;
+esac
 
 echo ""
-echo "  ╔══════════════════════════════════════╗"
-echo "  ║       Trivia Quest Server         ║"
-echo "  ╚══════════════════════════════════════╝"
-echo ""
-
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$SCRIPT_DIR/app"
-DATA_DIR="$SCRIPT_DIR/data"
-DB_PATH="$DATA_DIR/questions.db"
-
-# Detect Python command
-PYTHON_CMD=""
-if command -v python3 &> /dev/null; then
-    PYTHON_CMD="python3"
-elif command -v python &> /dev/null; then
-    PYTHON_CMD="python"
-else
-    echo "  ERROR: Python is not installed or not in PATH"
-    echo "  Please install Python from https://python.org"
-    exit 1
-fi
-
-# Check for Flask
-echo "  Checking dependencies..."
-if ! $PYTHON_CMD -c "import flask; import flask_cors" 2>/dev/null; then
-    echo "  Installing Flask dependencies..."
-    $PYTHON_CMD -m pip install flask flask-cors --quiet
-    if [ $? -ne 0 ]; then
-        echo "  ERROR: Failed to install Flask. Run: pip install flask flask-cors"
-        exit 1
-    fi
-fi
-
-echo "  Title: $APP_TITLE"
-
-# Build database by default (unless skipped)
-if [ "$SKIP_DB" = false ]; then
-    echo "  Building SQLite database..."
-    
-    BUILD_SCRIPT="$SCRIPT_DIR/scripts/build_database.py"
-    QUESTION_BANK="$SCRIPT_DIR/question_bank"
-    
-    # Create data directory if it doesn't exist
-    mkdir -p "$DATA_DIR"
-    
-    # Remove existing database to ensure fresh build
-    if [ -f "$DB_PATH" ]; then
-        rm -f "$DB_PATH"
-        echo "  Removed existing database"
-    fi
-    
-    # Set environment variables and run build script
-    export DATABASE_PATH="$DB_PATH"
-    export QUESTION_BANK_PATH="$QUESTION_BANK"
-    
-    if ! $PYTHON_CMD "$BUILD_SCRIPT"; then
-        echo ""
-        echo "  ERROR: Database build failed"
-        exit 1
-    fi
-    
-    echo "  Database built: $DB_PATH"
-else
-    echo "  Skipping database build (--skip-db)"
-fi
-
-echo ""
-
-# Set environment variables for dev server
-export PORT="$PORT"
-export DATABASE_PATH="$DB_PATH"
-export APP_TITLE="$APP_TITLE"
-export ADMIN_PASSWORD="$ADMIN_PASSWORD"
-export FREEPLAY="$FREEPLAY"
-export REQUIRE_USER_PASSWORD="$REQUIRE_USER_PASSWORD"
-
-# Start the Flask dev server
-$PYTHON_CMD "$SCRIPT_DIR/dev-server.py"

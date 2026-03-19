@@ -18,7 +18,11 @@
         sessionStartTime: null,
         answeredIds: new Set(),
         editingSessionId: null,
+        submitting: false,      // debounce guard for answer submission
+        pendingHidden: null,    // deferred hidden question awaiting Next click
         charts: {},             // chart.js instances
+        currentScreen: null,    // 'auth' | 'quiz' | 'quizComplete' | 'freeplay' | 'admin'
+        apiAvailable: false,
     };
 
     // ==================== HELPERS ====================
@@ -51,13 +55,8 @@
     }
 
     function updateFreeplayButton(freeplay) {
-        const btn = $('adminToggleFreeplay');
-        if (btn) {
-            btn.textContent = freeplay ? '🟢 Freeplay ON' : '🔴 Freeplay OFF';
-            btn.className = freeplay
-                ? 'btn btn-sm btn-warning'
-                : 'btn btn-sm btn-secondary';
-        }
+        const cb = $('freeplayToggleInput');
+        if (cb) cb.checked = !!freeplay;
     }
 
     // ==================== INITIALIZATION ====================
@@ -66,6 +65,7 @@
             const data = await api('/config');
             if (!data.success) return;
             quizState.config = data.config;
+            quizState.apiAvailable = true;
 
             // Restore admin token from sessionStorage
             const savedToken = sessionStorage.getItem('tq_admin_token');
@@ -75,8 +75,6 @@
             const savedUser = sessionStorage.getItem('tq_user');
             if (savedUser) quizState.user = JSON.parse(savedUser);
 
-            // Always start with quiz mode auth screen
-            // If freeplay is enabled, a button on the auth screen lets users switch
             showQuizMode();
         } catch (e) {
             console.log('Quiz mode init: API unavailable, defaulting to freeplay', e);
@@ -85,28 +83,15 @@
     }
 
     function showFreeplayMode() {
-        // Show all normal app elements, hide quiz-specific ones
+        hideAllScreens();
+        quizState.currentScreen = 'freeplay';
         show($('sidebarToggle'));
         show($('sidebar'));
-        hide($('quizAuthScreen'));
-        hide($('quizPlayScreen'));
-        hide($('quizCompleteScreen'));
-        hide($('adminPanel'));
-        // Show the welcome/setup screen so freeplay content is visible immediately
         show($('welcomeScreen'));
+        updateNav();
     }
 
     function showQuizMode() {
-        // Hide freeplay elements and sidebar (sidebar only visible in freeplay/admin)
-        hide($('sidebarToggle'));
-        hide($('sidebar'));
-        hide($('welcomeScreen'));
-        hide($('gameHeader'));
-        hide($('singleMode'));
-        hide($('jeopardyMode'));
-        hide($('gameOverScreen'));
-        hide($('scoreboard'));
-
         // If admin is logged in, show admin panel
         if (quizState.adminToken) {
             showAdminPanel();
@@ -126,6 +111,7 @@
     // ==================== AUTH SCREEN ====================
     function showAuthScreen() {
         hideAllScreens();
+        quizState.currentScreen = 'auth';
         show($('quizAuthScreen'));
         loadActiveSessionInfo();
         // Show password fields if required
@@ -136,12 +122,7 @@
             hide($('regPasswordGroup'));
             hide($('loginPasswordGroup'));
         }
-        // Show freeplay button if freeplay is enabled
-        if (quizState.config?.freeplay) {
-            show($('freeplayBtn'));
-        } else {
-            hide($('freeplayBtn'));
-        }
+        updateNav();
     }
 
     async function loadActiveSessionInfo() {
@@ -158,6 +139,10 @@
     }
 
     function initAuthListeners() {
+        // Prevent form submission (buttons trigger via click handlers)
+        $('registerForm')?.addEventListener('submit', e => e.preventDefault());
+        $('loginForm')?.addEventListener('submit', e => e.preventDefault());
+
         // Tab switching
         $('authRegisterTab')?.addEventListener('click', () => {
             $('authRegisterTab').classList.add('active');
@@ -187,6 +172,7 @@
                 if (data.success) {
                     quizState.user = data.user;
                     sessionStorage.setItem('tq_user', JSON.stringify(data.user));
+                    updateNav();
                     loadAndStartQuiz();
                 } else {
                     showError('registerError', data.error);
@@ -211,6 +197,7 @@
                 if (data.success) {
                     quizState.user = data.user;
                     sessionStorage.setItem('tq_user', JSON.stringify(data.user));
+                    updateNav();
                     loadAndStartQuiz();
                 } else {
                     showError('loginError', data.error);
@@ -226,15 +213,52 @@
         $('regPassword')?.addEventListener('keydown', e => { if (e.key === 'Enter') $('registerBtn').click(); });
         $('loginPassword')?.addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
 
-        // Freeplay button
-        $('freeplayBtn')?.addEventListener('click', () => showFreeplayMode());
-
-        // Admin access (both auth screen and sidebar buttons)
-        $('adminAccessBtn')?.addEventListener('click', () => show($('adminLoginModal')));
-        $('sidebarAdminBtn')?.addEventListener('click', () => show($('adminLoginModal')));
+        // Admin login modal
         $('adminLoginCancel')?.addEventListener('click', () => hide($('adminLoginModal')));
         $('adminLoginBtn')?.addEventListener('click', adminLogin);
         $('adminPassword')?.addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
+
+        // Nav bar handlers
+        $('navQuiz')?.addEventListener('click', () => {
+            if (quizState.user) {
+                loadAndStartQuiz();
+            } else {
+                showAuthScreen();
+            }
+        });
+        $('navFreeplay')?.addEventListener('click', () => showFreeplayMode());
+        $('navAdmin')?.addEventListener('click', () => {
+            if (quizState.adminToken) {
+                showAdminPanel();
+            } else {
+                show($('adminLoginModal'));
+            }
+        });
+        $('navProfile')?.addEventListener('click', openProfile);
+
+        function signOut() {
+            quizState.user = null;
+            quizState.adminToken = null;
+            sessionStorage.removeItem('tq_user');
+            sessionStorage.removeItem('tq_admin_token');
+            quizState.answeredIds.clear();
+            quizState.answeredCount = 0;
+            quizState.correctCount = 0;
+            quizState.currentIndex = 0;
+            hide($('userProfileModal'));
+            showAuthScreen();
+        }
+
+        $('navSignOut')?.addEventListener('click', signOut);
+        $('profileSignOutBtn')?.addEventListener('click', signOut);
+
+        $('navSignIn')?.addEventListener('click', () => {
+            if (quizState.user) {
+                openProfile();
+            } else {
+                showAuthScreen();
+            }
+        });
     }
 
     function showError(id, msg) {
@@ -253,6 +277,7 @@
                 sessionStorage.setItem('tq_admin_token', data.token);
                 hide($('adminLoginModal'));
                 $('adminPassword').value = '';
+                updateNav();
                 showAdminPanel();
             } else {
                 showError('adminLoginError', data.error);
@@ -265,7 +290,9 @@
     // ==================== QUIZ PLAY ====================
     async function loadAndStartQuiz() {
         hideAllScreens();
+        quizState.currentScreen = 'quiz';
         show($('quizPlayScreen'));
+        updateNav();
 
         try {
             const data = await api('/session/active');
@@ -295,7 +322,6 @@
             quizState.currentIndex = 0;
 
             $('quizPlayTitle').textContent = data.session.name;
-            $('quizPlayUser').textContent = quizState.user.username;
             quizState.sessionStartTime = Date.now();
 
             if (quizState.quizQuestions.length === 0) {
@@ -477,7 +503,7 @@
     }
 
     function renderQuizHiddenQuestion(q, grid) {
-        // Hidden questions auto-submit as correct (informational)
+        // Hidden questions are informational — record after the user has had a chance to read.
         q.Answers.forEach(answer => {
             const spoiler = document.createElement('div');
             spoiler.className = 'spoiler-block';
@@ -489,11 +515,15 @@
             grid.appendChild(spoiler);
         });
 
-        // Auto-record as viewed (correct) since there's no right/wrong
-        recordAnswer(q, q.Answers, true);
+        // Enable Next — answer is recorded when the user advances
+        quizState.pendingHidden = q;
+        $('quizNextBtn').disabled = false;
     }
 
     async function recordAnswer(q, selectedAnswers, isCorrect) {
+        if (quizState.submitting || quizState.answeredIds.has(q.id)) return;
+        quizState.submitting = true;
+
         const timeTaken = (Date.now() - quizState.questionStartTime) / 1000;
 
         if (isCorrect) quizState.correctCount++;
@@ -531,6 +561,7 @@
 
         updateQuizProgress();
         $('quizNextBtn').disabled = false;
+        quizState.submitting = false;
     }
 
     function updateQuizProgress() {
@@ -543,7 +574,9 @@
 
     async function completeQuiz() {
         hideAllScreens();
+        quizState.currentScreen = 'quizComplete';
         show($('quizCompleteScreen'));
+        updateNav();
 
         try {
             const data = await api('/quiz/complete', {
@@ -616,10 +649,10 @@
     // ==================== ADMIN PANEL ====================
     function showAdminPanel() {
         hideAllScreens();
-        show($('sidebarToggle'));
-        show($('sidebar'));
+        quizState.currentScreen = 'admin';
         show($('adminPanel'));
         loadAdminData();
+        updateNav();
     }
 
     function initAdminListeners() {
@@ -638,30 +671,33 @@
             });
         });
 
-        // Toggle freeplay
-        $('adminToggleFreeplay')?.addEventListener('click', async () => {
-            const data = await api('/admin/config');
-            if (data.success) {
-                const newVal = !data.config.freeplay;
-                const updateData = await api('/admin/config', {
-                    method: 'POST',
-                    body: JSON.stringify({ freeplay: newVal })
-                });
-                if (updateData.success) {
-                    quizState.config.freeplay = newVal;
-                    updateFreeplayButton(newVal);
-                    showToast(`Freeplay is now ${newVal ? 'ON' : 'OFF'}`);
-                } else {
-                    showToast('Failed to toggle freeplay', 'error');
-                }
+        // Toggle freeplay (checkbox)
+        $('freeplayToggleInput')?.addEventListener('change', async (e) => {
+            const newVal = e.target.checked;
+            const updateData = await api('/admin/config', {
+                method: 'POST',
+                body: JSON.stringify({ freeplay: newVal })
+            });
+            if (updateData.success) {
+                quizState.config.freeplay = newVal;
+                showToast(`Freeplay is now ${newVal ? 'ON' : 'OFF'}`);
+                updateNav();
+            } else {
+                e.target.checked = !newVal; // revert
+                showToast('Failed to toggle freeplay', 'error');
             }
         });
 
-        // Logout
+        // Logout (admin only — clears admin token, returns to auth/quiz)
         $('adminLogoutBtn')?.addEventListener('click', () => {
             quizState.adminToken = null;
             sessionStorage.removeItem('tq_admin_token');
-            quizState.config ? showQuizMode() : location.reload();
+            showToast('Logged out of admin');
+            if (quizState.user) {
+                loadAndStartQuiz();
+            } else {
+                showAuthScreen();
+            }
         });
 
         // Create session
@@ -677,7 +713,23 @@
         });
 
         $('cancelSessionBtn')?.addEventListener('click', () => hide($('sessionFormCard')));
+        $('cancelSessionBtn2')?.addEventListener('click', () => hide($('sessionFormCard')));
         $('saveSessionBtn')?.addEventListener('click', saveSession);
+
+        // Charts collapsible toggle
+        $('chartsToggle')?.addEventListener('click', () => {
+            const section = $('chartsToggle').closest('.admin-collapsible');
+            if (section) section.classList.toggle('collapsed');
+        });
+
+        // User search filter
+        $('userSearchInput')?.addEventListener('input', () => {
+            const q = $('userSearchInput').value.toLowerCase();
+            document.querySelectorAll('.user-row').forEach(row => {
+                const searchText = (row.dataset.search || row.textContent).toLowerCase();
+                row.style.display = searchText.includes(q) ? '' : 'none';
+            });
+        });
 
         // Export buttons
         $('exportSummaryBtn')?.addEventListener('click', () => exportResults('summary'));
@@ -686,21 +738,25 @@
         // Results session filter
         $('resultsSessionFilter')?.addEventListener('change', loadResults);
 
-        // Quiz back / logout buttons
-        const doLogout = () => {
-            quizState.user = null;
-            sessionStorage.removeItem('tq_user');
-            quizState.answeredIds.clear();
-            quizState.answeredCount = 0;
-            quizState.correctCount = 0;
-            quizState.currentIndex = 0;
-            showAuthScreen();
-        };
-        $('quizBackToLogin')?.addEventListener('click', doLogout);
-        $('quizLogoutBtn')?.addEventListener('click', doLogout);
+        // Retake quiz button on complete screen
+        $('quizRetakeBtn')?.addEventListener('click', () => loadAndStartQuiz());
+
+        // Profile buttons (nav handles main profile, but keep modal close/save)
+        $('profileCloseBtn')?.addEventListener('click', () => hide($('userProfileModal')));
+        $('profileSaveBtn')?.addEventListener('click', saveProfile);
+
+        // Admin edit-user modal
+        $('editUserCancelBtn')?.addEventListener('click', () => hide($('adminEditUserModal')));
+        $('editUserSaveBtn')?.addEventListener('click', saveEditUser);
 
         // Quiz next button
         $('quizNextBtn')?.addEventListener('click', () => {
+            // Record deferred hidden-question answer before advancing
+            if (quizState.pendingHidden) {
+                const q = quizState.pendingHidden;
+                quizState.pendingHidden = null;
+                recordAnswer(q, q.Answers, true);
+            }
             quizState.currentIndex++;
             if (quizState.currentIndex >= quizState.quizQuestions.length) {
                 completeQuiz();
@@ -711,17 +767,33 @@
     }
 
     async function loadAdminData() {
-        await loadSessions();
+        const [sessData, configData, usersData, resultsData] = await Promise.all([
+            api('/admin/sessions').catch(() => null),
+            api('/admin/config').catch(() => null),
+            api('/admin/users').catch(() => null),
+            api('/admin/results/summary').catch(() => null)
+        ]);
+
+        // Freeplay toggle
+        if (configData?.success) updateFreeplayButton(configData.config.freeplay);
+
+        // Tab badges
+        const sessionCount = sessData?.sessions?.length ?? 0;
+        const userCount = usersData?.users?.length ?? 0;
+        const resultCount = resultsData?.success ? (resultsData.summary?.userScores?.length ?? 0) : 0;
+        const badge = (id, n) => { const el = $(id); if (el) el.textContent = n > 0 ? n : ''; };
+        badge('badgeSessions', sessionCount);
+        badge('badgeResults', resultCount);
+        badge('badgeUsers', userCount);
+
+        // Active session indicator
+        const activeSession = sessData?.sessions?.find(s => s.isActive);
+        const indicator = $('adminActiveSession');
+        if (indicator) indicator.textContent = activeSession ? `Active: ${activeSession.name}` : 'No active session';
+
+        // Render sessions list
+        if (sessData?.success) renderSessionsList(sessData.sessions);
         await loadSessionFilter();
-        // Set freeplay button state
-        try {
-            const configData = await api('/admin/config');
-            if (configData.success) {
-                updateFreeplayButton(configData.config.freeplay);
-            }
-        } catch (e) {
-            console.error('Failed to load config for freeplay button:', e);
-        }
     }
 
     // ==================== SESSIONS MANAGEMENT ====================
@@ -729,39 +801,50 @@
         try {
             const data = await api('/admin/sessions');
             if (!data.success) return;
-
-            const container = $('sessionsList');
-            if (data.sessions.length === 0) {
-                container.innerHTML = '<p class="empty-state">No sessions created yet. Click "+ New Session" to create one.</p>';
-                return;
-            }
-
-            container.innerHTML = data.sessions.map(s => `
-                <div class="session-card ${s.isActive ? 'active-session' : ''}">
-                    <div class="session-card-header">
-                        <div>
-                            <h3>${escapeHtml(s.name)} ${s.isActive ? '<span class="active-badge">ACTIVE</span>' : ''}</h3>
-                            <p class="session-meta">${s.categories.length} categories &bull; ${s.participantCount} participants</p>
-                            ${s.description ? `<p class="session-desc">${escapeHtml(s.description)}</p>` : ''}
-                        </div>
-                        <div class="session-actions">
-                            ${s.isActive
-                    ? `<button class="btn btn-warning btn-sm" onclick="window._quizAdmin.deactivateSession(${s.id})">Deactivate</button>`
-                    : `<button class="btn btn-primary btn-sm" onclick="window._quizAdmin.activateSession(${s.id})">Activate</button>`}
-                            <button class="btn btn-secondary btn-sm" onclick="window._quizAdmin.editSession(${s.id})">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="window._quizAdmin.deleteSession(${s.id})">Delete</button>
-                        </div>
-                    </div>
-                    <div class="session-categories">
-                        ${s.categories.map(c => `
-                            <span class="session-cat-tag">${escapeHtml(c.categoryName)}${c.difficulty ? ` (${c.difficulty})` : ''}${c.questionLimit ? ` [max ${c.questionLimit}]` : ''}</span>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
+            renderSessionsList(data.sessions);
         } catch (e) {
             console.error('Failed to load sessions:', e);
         }
+    }
+
+    function renderSessionsList(sessions) {
+        const container = $('sessionsList');
+        if (!sessions || sessions.length === 0) {
+            container.innerHTML = '<p class="empty-state">No sessions created yet. Click "+ New Session" to create one.</p>';
+            return;
+        }
+
+        container.innerHTML = sessions.map(s => `
+            <div class="session-card ${s.isActive ? 'active-session' : ''}">
+                <div class="session-card-header">
+                    <div>
+                        <h3>
+                            <span class="session-status-dot ${s.isActive ? 'active' : 'inactive'}"></span>
+                            ${escapeHtml(s.name)}
+                            ${s.isActive ? '<span class="active-badge">LIVE</span>' : ''}
+                        </h3>
+                        <div class="session-info">
+                            <p class="session-meta">📁 ${s.categories.length} categories</p>
+                            <p class="session-meta">👥 ${s.participantCount} participants</p>
+                            ${s.timeLimitMinutes ? `<p class="session-meta">⏱ ${s.timeLimitMinutes}m</p>` : ''}
+                        </div>
+                        ${s.description ? `<p class="session-desc">${escapeHtml(s.description)}</p>` : ''}
+                    </div>
+                    <div class="session-actions">
+                        ${s.isActive
+                ? `<button class="btn btn-warning btn-sm" onclick="window._quizAdmin.deactivateSession(${s.id})" title="Deactivate">⏹ Stop</button>`
+                : `<button class="btn btn-primary btn-sm" onclick="window._quizAdmin.activateSession(${s.id})" title="Activate">▶ Start</button>`}
+                        <button class="btn btn-secondary btn-sm" onclick="window._quizAdmin.editSession(${s.id})" title="Edit">✏️</button>
+                        <button class="btn btn-danger btn-sm" onclick="window._quizAdmin.deleteSession(${s.id})" title="Delete">🗑</button>
+                    </div>
+                </div>
+                <div class="session-categories">
+                    ${s.categories.map(c => `
+                        <span class="session-cat-tag">${escapeHtml(c.categoryName)}${c.difficulty ? ` (${c.difficulty})` : ''}${c.questionLimit ? ` [max ${c.questionLimit}]` : ''}</span>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
     }
 
     async function loadCategoryPicker() {
@@ -942,9 +1025,21 @@
                 api(`/admin/results${sessionId ? '?sessionId=' + sessionId : ''}`)
             ]);
 
-            // Render charts in separate try/catch so table still renders if Chart.js fails
+            // Populate stat cards
             if (summaryData.success) {
-                try { renderCharts(summaryData.summary); } catch (chartErr) {
+                const s = summaryData.summary;
+                const totalQuizzes = s.userScores?.length ?? 0;
+                const avgScore = totalQuizzes > 0 ? Math.round(s.userScores.reduce((a, u) => a + u.percentage, 0) / totalQuizzes) : 0;
+                const passRate = totalQuizzes > 0 ? Math.round(s.userScores.filter(u => u.percentage >= 70).length / totalQuizzes * 100) : 0;
+                const totalAnswers = s.categoryAccuracy?.reduce((a, c) => a + (c.total || 0), 0) ?? 0;
+                const sv = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+                sv('statTotalQuizzes', totalQuizzes);
+                sv('statAvgScore', avgScore + '%');
+                sv('statPassRate', passRate + '%');
+                sv('statTotalQuestions', totalAnswers);
+
+                // Render charts in separate try/catch so table still renders if Chart.js fails
+                try { renderCharts(s); } catch (chartErr) {
                     console.error('Chart rendering failed:', chartErr);
                 }
             }
@@ -1117,35 +1212,64 @@
             if (!data.success) return;
 
             const container = $('usersTable');
-            if (data.users.length === 0) {
+            const users = data.users;
+
+            // Populate user stat cards
+            const sv = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+            sv('statTotalUsers', users.length);
+            const weekAgo = Date.now() - 7 * 86400000;
+            const activeCount = users.filter(u => u.lastActive && new Date(u.lastActive).getTime() > weekAgo).length;
+            sv('statActiveUsers', activeCount);
+
+            if (users.length === 0) {
                 container.innerHTML = '<p class="empty-state">No users registered yet.</p>';
                 return;
             }
 
-            container.innerHTML = `
-                <table class="data-table">
-                    <thead>
-                        <tr><th>Username</th><th>Quizzes Taken</th><th>Registered</th><th>Actions</th></tr>
-                    </thead>
-                    <tbody>
-                        ${data.users.map(u => `
-                            <tr>
-                                <td>${escapeHtml(u.username)}</td>
-                                <td>${u.quizCount}</td>
-                                <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</td>
-                                <td><button class="btn btn-danger btn-sm" onclick="window._quizAdmin.deleteUser(${u.id})">Delete</button></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+            container.innerHTML = users.map(u => {
+                const nameDisplay = u.displayName ? escapeHtml(u.displayName) : escapeHtml(u.username);
+                const usernameSmall = u.displayName ? `<small>@${escapeHtml(u.username)}</small>` : '';
+                const roleText = u.role ? escapeHtml(u.role) : '<span class="ur-label">—</span>';
+                const orgText = u.organization ? escapeHtml(u.organization) : '';
+                const emailText = u.email ? escapeHtml(u.email) : '';
+                const phoneText = u.phone ? escapeHtml(u.phone) : '';
+                const avgScoreVal = u.avgScore ?? 0;
+                const scoreClass = avgScoreVal >= 70 ? 'good' : avgScoreVal >= 50 ? 'ok' : 'low';
+                return `
+                <div class="user-row" data-search="${escapeHtml((u.displayName || '') + ' ' + u.username + ' ' + (u.email || '') + ' ' + (u.organization || ''))}">
+                    <div class="user-row-user ul-col ul-col-user">
+                        <div class="user-identicon">${generateIdenticon(u.username)}</div>
+                        <div class="user-row-name">
+                            <strong>${nameDisplay}</strong>
+                            ${usernameSmall}
+                        </div>
+                    </div>
+                    <div class="user-row-role ul-col ul-col-role">
+                        <span>${roleText}</span>
+                        <span class="ur-label">${orgText}</span>
+                    </div>
+                    <div class="user-row-contact ul-col ul-col-contact">
+                        <span>${emailText || '<span class="ur-label">—</span>'}</span>
+                        <span>${phoneText}</span>
+                    </div>
+                    <div class="user-row-stats ul-col ul-col-stats">
+                        <span>${u.quizCount} quizzes</span>
+                        <span class="ur-score score-badge ${scoreClass}">${avgScoreVal}% avg</span>
+                    </div>
+                    <div class="user-row-actions ul-col ul-col-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="window._quizAdmin.editUser(${u.id})" title="Edit">✏️</button>
+                        <button class="btn btn-secondary btn-sm" onclick="window._quizAdmin.resetPassword(${u.id}, '${escapeHtml(u.username)}')" title="Reset Password">🔑</button>
+                        <button class="btn btn-danger btn-sm" onclick="window._quizAdmin.deleteUser(${u.id}, '${escapeHtml(u.username)}')" title="Delete">🗑️</button>
+                    </div>
+                </div>`;
+            }).join('');
         } catch (e) {
             console.error('Failed to load users:', e);
         }
     }
 
-    window._quizAdmin.deleteUser = async (id) => {
-        if (!confirm('Delete this user and all their results?')) return;
+    window._quizAdmin.deleteUser = async (id, username) => {
+        if (!confirm(`Delete user "${username || id}" and all their results? This cannot be undone.`)) return;
         const data = await api(`/admin/users/${id}`, { method: 'DELETE' });
         if (data.success) {
             showToast('User deleted');
@@ -1154,6 +1278,127 @@
             showToast(data.error || 'Failed to delete user', 'error');
         }
     };
+
+    window._quizAdmin.resetPassword = async (id, username) => {
+        const newPw = prompt(`Enter new password for "${username}":`);
+        if (!newPw) return;
+        if (newPw.length < 3) return showToast('Password too short (min 3 chars)', 'error');
+        const data = await api(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ password: newPw }) });
+        if (data.success) {
+            showToast(`Password reset for ${username}`);
+        } else {
+            showToast(data.error || 'Failed to reset password', 'error');
+        }
+    };
+
+    // ==================== USER PROFILE ====================
+    async function openProfile() {
+        if (!quizState.user) return;
+        try {
+            const data = await api(`/user/profile?userId=${quizState.user.id}`);
+            if (!data.success) return showToast(data.error || 'Could not load profile', 'error');
+            const p = data.profile;
+            $('profileAvatar').innerHTML = generateIdenticon(p.username || 'user');
+            $('profileUsername').textContent = p.username;
+            $('profileJoined').textContent = `Joined: ${p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '-'}`;
+            $('profileQuizCount').textContent = p.quizCount ?? 0;
+            $('profileAvgScore').textContent = (p.avgScore ?? 0) + '%';
+            $('profileLastActive').textContent = p.lastActive ? new Date(p.lastActive).toLocaleDateString() : '-';
+            $('profileDisplayName').value = p.displayName || '';
+            $('profileEmail').value = p.email || '';
+            $('profileBio').value = p.bio || '';
+            $('profileRole').value = p.role || '';
+            $('profileOrganization').value = p.organization || '';
+            $('profilePhone').value = p.phone || '';
+            hide($('profileError'));
+            show($('userProfileModal'));
+        } catch {
+            showToast('Could not load profile', 'error');
+        }
+    }
+
+    async function saveProfile() {
+        if (!quizState.user) return;
+        const body = {
+            userId: quizState.user.id,
+            displayName: $('profileDisplayName').value.trim(),
+            email: $('profileEmail').value.trim(),
+            bio: $('profileBio').value.trim(),
+            role: $('profileRole').value.trim(),
+            organization: $('profileOrganization').value.trim(),
+            phone: $('profilePhone').value.trim()
+        };
+        try {
+            const data = await api('/user/profile', { method: 'PUT', body: JSON.stringify(body) });
+            if (data.success) {
+                showToast('Profile updated');
+                // Update local user state
+                quizState.user.displayName = body.displayName;
+                quizState.user.email = body.email;
+                quizState.user.bio = body.bio;
+                quizState.user.role = body.role;
+                quizState.user.organization = body.organization;
+                quizState.user.phone = body.phone;
+                sessionStorage.setItem('tq_user', JSON.stringify(quizState.user));
+                updateNav();
+                hide($('userProfileModal'));
+            } else {
+                showError('profileError', data.error || 'Save failed');
+            }
+        } catch {
+            showError('profileError', 'Connection error');
+        }
+    }
+
+    // ==================== ADMIN EDIT USER ====================
+    window._quizAdmin.editUser = async (id) => {
+        try {
+            const data = await api(`/user/profile?userId=${id}`);
+            if (!data.success) return showToast('Could not load user', 'error');
+            const p = data.profile;
+            $('editUserId').value = id;
+            $('editUserUsername').value = p.username || '';
+            $('editUserDisplayName').value = p.displayName || '';
+            $('editUserEmail').value = p.email || '';
+            $('editUserBio').value = p.bio || '';
+            $('editUserRole').value = p.role || '';
+            $('editUserOrganization').value = p.organization || '';
+            $('editUserPhone').value = p.phone || '';
+            $('editUserPassword').value = '';
+            hide($('editUserError'));
+            show($('adminEditUserModal'));
+        } catch {
+            showToast('Could not load user', 'error');
+        }
+    };
+
+    async function saveEditUser() {
+        const userId = $('editUserId').value;
+        if (!userId) return;
+        const body = {
+            username: $('editUserUsername').value.trim(),
+            displayName: $('editUserDisplayName').value.trim(),
+            email: $('editUserEmail').value.trim(),
+            bio: $('editUserBio').value.trim(),
+            role: $('editUserRole').value.trim(),
+            organization: $('editUserOrganization').value.trim(),
+            phone: $('editUserPhone').value.trim()
+        };
+        const pw = $('editUserPassword').value;
+        if (pw) body.password = pw;
+        try {
+            const data = await api(`/admin/users/${userId}`, { method: 'PUT', body: JSON.stringify(body) });
+            if (data.success) {
+                showToast('User updated');
+                hide($('adminEditUserModal'));
+                await loadUsers();
+            } else {
+                showError('editUserError', data.error || 'Save failed');
+            }
+        } catch {
+            showError('editUserError', 'Connection error');
+        }
+    }
 
     async function exportResults(type) {
         const sessionId = $('resultsSessionFilter')?.value || '';
@@ -1174,6 +1419,52 @@
         }
     }
 
+    // ==================== NAVIGATION ====================
+    function updateNav() {
+        const nav = $('appNav');
+        if (!quizState.apiAvailable) { hide(nav); return; }
+        show(nav);
+
+        // Active link
+        document.querySelectorAll('.app-nav-link').forEach(l => l.classList.remove('active'));
+        const screen = quizState.currentScreen;
+        if (screen === 'quiz' || screen === 'quizComplete') {
+            $('navQuiz')?.classList.add('active');
+        } else if (screen === 'freeplay') {
+            $('navFreeplay')?.classList.add('active');
+        } else if (screen === 'admin') {
+            $('navAdmin')?.classList.add('active');
+        }
+
+        // Quiz link: visible only if user is logged in
+        if (quizState.user) {
+            show($('navQuiz'));
+        } else {
+            hide($('navQuiz'));
+        }
+
+        // Freeplay link: visible if freeplay is enabled
+        if (quizState.config?.freeplay) {
+            show($('navFreeplay'));
+        } else {
+            hide($('navFreeplay'));
+        }
+
+        // Admin link: always visible
+        show($('navAdmin'));
+
+        // User section: show profile+signout if logged in, else show sign-in button
+        if (quizState.user) {
+            show($('navUser'));
+            hide($('navSignIn'));
+            $('navUserName').textContent = quizState.user.displayName || quizState.user.username;
+            $('navUserAvatar').innerHTML = generateIdenticon(quizState.user.username);
+        } else {
+            hide($('navUser'));
+            show($('navSignIn'));
+        }
+    }
+
     // ==================== UTILITIES ====================
     function hideAllScreens() {
         // Hide quiz-mode screens
@@ -1182,13 +1473,20 @@
         hide($('quizCompleteScreen'));
         hide($('adminPanel'));
         hide($('adminLoginModal'));
+        hide($('userProfileModal'));
+        hide($('adminEditUserModal'));
         // Hide freeplay screens
         hide($('welcomeScreen'));
         hide($('gameOverScreen'));
-        hide($('gameHeader'));
+        hide($('questionCounter'));
         hide($('singleMode'));
         hide($('jeopardyMode'));
         hide($('scoreboard'));
+        // Hide sidebar hamburger & panel, reset open state
+        hide($('sidebarToggle'));
+        hide($('sidebar'));
+        $('sidebar')?.classList.remove('open');
+        $('sidebarToggle')?.classList.remove('active');
     }
 
     function shuffleArray(arr) {
@@ -1196,6 +1494,38 @@
             const j = Math.floor(Math.random() * (i + 1));
             [arr[i], arr[j]] = [arr[j], arr[i]];
         }
+    }
+
+    // ==================== IDENTICON GENERATOR ====================
+    function generateIdenticon(username) {
+        // Simple hash
+        let h = 0;
+        for (let i = 0; i < username.length; i++) {
+            h = ((h << 5) - h + username.charCodeAt(i)) | 0;
+        }
+        const hue = ((h >>> 0) % 360);
+        const color = `hsl(${hue}, 65%, 55%)`;
+        const bg = `hsl(${hue}, 25%, 92%)`;
+        // 5x5 symmetric grid from hash bits
+        let bits = Math.abs(h);
+        const cells = [];
+        for (let row = 0; row < 5; row++) {
+            cells[row] = [];
+            for (let col = 0; col < 3; col++) {
+                cells[row][col] = bits & 1;
+                bits = bits >>> 1;
+                if (bits === 0) bits = Math.abs((h * (row + 1) * (col + 1)) | 0) || 1;
+            }
+            cells[row][3] = cells[row][1];
+            cells[row][4] = cells[row][0];
+        }
+        let rects = '';
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
+                if (cells[r][c]) rects += `<rect x="${c}" y="${r}" width="1" height="1" fill="${color}"/>`;
+            }
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5 5" shape-rendering="crispEdges"><rect width="5" height="5" fill="${bg}"/>${rects}</svg>`;
     }
 
     function escapeHtml(str) {

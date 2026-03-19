@@ -99,6 +99,12 @@ def ensure_tables():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT,
+            display_name TEXT,
+            email TEXT,
+            bio TEXT,
+            role TEXT,
+            organization TEXT,
+            phone TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS quiz_sessions (
@@ -131,7 +137,8 @@ def ensure_tables():
             answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
-            FOREIGN KEY (question_id) REFERENCES questions(id)
+            FOREIGN KEY (question_id) REFERENCES questions(id),
+            UNIQUE(user_id, session_id, question_id)
         );
         CREATE TABLE IF NOT EXISTS user_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,7 +149,8 @@ def ensure_tables():
             total_time_seconds REAL,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE
+            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
+            UNIQUE(user_id, session_id)
         );
         CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
         CREATE INDEX IF NOT EXISTS idx_quiz_sessions_active ON quiz_sessions(is_active);
@@ -150,10 +158,16 @@ def ensure_tables():
         CREATE INDEX IF NOT EXISTS idx_user_answers_session ON user_answers(session_id);
         CREATE INDEX IF NOT EXISTS idx_user_results_user ON user_results(user_id);
         CREATE INDEX IF NOT EXISTS idx_user_results_session ON user_results(session_id);
+        CREATE INDEX IF NOT EXISTS idx_user_answers_lookup ON user_answers(user_id, session_id, question_id);
+        CREATE INDEX IF NOT EXISTS idx_user_results_lookup ON user_results(user_id, session_id);
     ''')
     db.commit()
-
-# =============================================================================
+    # Migrate existing databases: add profile columns if missing
+    cols = {row['name'] for row in db.execute("PRAGMA table_info(users)").fetchall()}
+    for col, typedef in [('display_name', 'TEXT'), ('email', 'TEXT'), ('bio', 'TEXT'), ('role', 'TEXT'), ('organization', 'TEXT'), ('phone', 'TEXT')]:
+        if col not in cols:
+            db.execute(f'ALTER TABLE users ADD COLUMN {col} {typedef}')
+    db.commit()
 # App Config Endpoints
 # =============================================================================
 
@@ -415,11 +429,17 @@ def register_user():
             db.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
                       (username, password_hash))
             db.commit()
-            user_id = db.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()['id']
+            user = db.execute('SELECT id, username, display_name, email, bio FROM users WHERE username = ?', (username,)).fetchone()
             
             return jsonify({
                 'success': True,
-                'user': {'id': user_id, 'username': username}
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'displayName': user['display_name'] or '',
+                    'email': user['email'] or '',
+                    'bio': user['bio'] or ''
+                }
             })
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Username already taken'}), 409
@@ -440,24 +460,103 @@ def login_user():
         
         user = db.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
         if not user:
-            return jsonify({'success': False, 'error': 'User not found'}), 404
+            return jsonify({'success': False, 'error': 'User not found'})
         
         if REQUIRE_USER_PASSWORD:
             password = data.get('password', '')
             password_hash = hashlib.sha256(password.encode()).hexdigest()
             if user['password_hash'] != password_hash:
-                return jsonify({'success': False, 'error': 'Invalid password'}), 401
+                return jsonify({'success': False, 'error': 'Invalid password'})
         
         return jsonify({
             'success': True,
-            'user': {'id': user['id'], 'username': user['username']}
+            'user': {
+                'id': user['id'],
+                'username': user['username'],
+                'displayName': user['display_name'] or '' if 'display_name' in user.keys() else '',
+                'email': user['email'] or '' if 'email' in user.keys() else '',
+                'bio': user['bio'] or '' if 'bio' in user.keys() else ''
+            }
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # =============================================================================
-# Quiz Sessions (Admin)
+# User Profile
 # =============================================================================
+
+@app.route('/api/user/profile', methods=['GET'])
+def get_user_profile():
+    """Get user profile by userId query param."""
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+            return jsonify({'success': False, 'error': 'userId required'}), 400
+        
+        db = get_db()
+        ensure_tables()
+        
+        user = db.execute('''
+            SELECT u.id, u.username, u.display_name, u.email, u.bio, u.role, u.organization, u.phone, u.created_at,
+                   (SELECT COUNT(*) FROM user_results ur WHERE ur.user_id = u.id) as quiz_count,
+                   (SELECT AVG(ur.correct_answers * 100.0 / ur.total_questions) FROM user_results ur WHERE ur.user_id = u.id AND ur.total_questions > 0) as avg_score,
+                   (SELECT MAX(ur.completed_at) FROM user_results ur WHERE ur.user_id = u.id) as last_active
+            FROM users u WHERE u.id = ?
+        ''', (user_id,)).fetchone()
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'profile': {
+                'id': user['id'],
+                'username': user['username'],
+                'displayName': user['display_name'] or '',
+                'email': user['email'] or '',
+                'bio': user['bio'] or '',
+                'role': user['role'] or '',
+                'organization': user['organization'] or '',
+                'phone': user['phone'] or '',
+                'createdAt': user['created_at'],
+                'quizCount': user['quiz_count'],
+                'avgScore': round(user['avg_score'], 1) if user['avg_score'] else 0,
+                'lastActive': user['last_active']
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/user/profile', methods=['PUT'])
+def update_user_profile():
+    """Update own profile (display_name, email, bio)."""
+    try:
+        data = request.get_json()
+        if not data or 'userId' not in data:
+            return jsonify({'success': False, 'error': 'userId required'}), 400
+        
+        user_id = data['userId']
+        db = get_db()
+        ensure_tables()
+        
+        user = db.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        display_name = data.get('displayName', '').strip()[:50]
+        email = data.get('email', '').strip()[:100]
+        bio = data.get('bio', '').strip()[:200]
+        role = data.get('role', '').strip()[:50]
+        organization = data.get('organization', '').strip()[:100]
+        phone = data.get('phone', '').strip()[:30]
+        
+        db.execute('UPDATE users SET display_name = ?, email = ?, bio = ?, role = ?, organization = ?, phone = ? WHERE id = ?',
+                  (display_name or None, email or None, bio or None, role or None, organization or None, phone or None, user_id))
+        db.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/admin/sessions', methods=['GET'])
 @require_admin
@@ -727,7 +826,7 @@ def submit_answer():
     """Submit a single answer. Called after each question."""
     try:
         data = request.get_json()
-        required = ['userId', 'sessionId', 'questionId', 'selectedAnswers', 'isCorrect']
+        required = ['userId', 'sessionId', 'questionId', 'selectedAnswers']
         if not data or not all(k in data for k in required):
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
         
@@ -738,30 +837,62 @@ def submit_answer():
         if not user:
             return jsonify({'success': False, 'error': 'User not found'}), 404
         
-        existing = db.execute('''
-            SELECT id FROM user_answers 
-            WHERE user_id = ? AND session_id = ? AND question_id = ?
-        ''', (data['userId'], data['sessionId'], data['questionId'])).fetchone()
+        # Look up the question and validate server-side
+        question = db.execute(
+            'SELECT answers, question_type, regex_pattern FROM questions WHERE id = ?',
+            (data['questionId'],)
+        ).fetchone()
+        if not question:
+            return jsonify({'success': False, 'error': 'Question not found'}), 404
         
-        if existing:
-            return jsonify({'success': True, 'message': 'Answer already recorded', 'duplicate': True})
+        is_correct = _validate_answer(question, data['selectedAnswers'])
         
-        db.execute('''
-            INSERT INTO user_answers (user_id, session_id, question_id, selected_answers, is_correct, time_taken_seconds)
+        # Use INSERT OR IGNORE to avoid race-condition duplicates
+        cursor = db.execute('''
+            INSERT OR IGNORE INTO user_answers (user_id, session_id, question_id, selected_answers, is_correct, time_taken_seconds)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
             data['userId'],
             data['sessionId'],
             data['questionId'],
             json.dumps(data['selectedAnswers']),
-            1 if data['isCorrect'] else 0,
+            1 if is_correct else 0,
             data.get('timeTakenSeconds')
         ))
         db.commit()
         
-        return jsonify({'success': True})
+        if cursor.rowcount == 0:
+            return jsonify({'success': True, 'message': 'Answer already recorded', 'duplicate': True})
+        
+        return jsonify({'success': True, 'isCorrect': is_correct})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _validate_answer(question, selected_answers):
+    """Validate the user's answer server-side against the stored correct answer."""
+    q_type = question['question_type']
+    correct_raw = json.loads(question['answers'])
+
+    if q_type == 'hidden':
+        # Informational — always "correct"
+        return True
+
+    if q_type == 'general' and question['regex_pattern']:
+        # Any selected answer that matches the regex is correct
+        pattern = question['regex_pattern']
+        try:
+            for ans in (selected_answers if isinstance(selected_answers, list) else [selected_answers]):
+                if re.fullmatch(pattern, str(ans), re.IGNORECASE):
+                    return True
+        except re.error:
+            pass
+        return False
+
+    # multiple_choice or multiple_answer: compare answer sets
+    correct_set = {str(a).strip().lower() for a in correct_raw}
+    selected_set = {str(a).strip().lower() for a in (selected_answers if isinstance(selected_answers, list) else [selected_answers])}
+    return correct_set == selected_set
 
 @app.route('/api/quiz/complete', methods=['POST'])
 def complete_quiz():
@@ -781,20 +912,15 @@ def complete_quiz():
             WHERE user_id = ? AND session_id = ?
         ''', (data['userId'], data['sessionId'])).fetchone()
         
-        existing = db.execute('''
-            SELECT id FROM user_results WHERE user_id = ? AND session_id = ?
-        ''', (data['userId'], data['sessionId'])).fetchone()
-        
-        if existing:
-            db.execute('''
-                UPDATE user_results SET total_questions = ?, correct_answers = ?, total_time_seconds = ?, completed_at = CURRENT_TIMESTAMP
-                WHERE user_id = ? AND session_id = ?
-            ''', (stats['total'], stats['correct'] or 0, stats['total_time'], data['userId'], data['sessionId']))
-        else:
-            db.execute('''
-                INSERT INTO user_results (user_id, session_id, total_questions, correct_answers, total_time_seconds)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (data['userId'], data['sessionId'], stats['total'], stats['correct'] or 0, stats['total_time']))
+        db.execute('''
+            INSERT INTO user_results (user_id, session_id, total_questions, correct_answers, total_time_seconds)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, session_id) DO UPDATE SET
+                total_questions = excluded.total_questions,
+                correct_answers = excluded.correct_answers,
+                total_time_seconds = excluded.total_time_seconds,
+                completed_at = CURRENT_TIMESTAMP
+        ''', (data['userId'], data['sessionId'], stats['total'], stats['correct'] or 0, stats['total_time']))
         
         db.commit()
         
@@ -1165,8 +1291,10 @@ def list_users():
         ensure_tables()
         
         users = db.execute('''
-            SELECT u.id, u.username, u.created_at,
-                   (SELECT COUNT(*) FROM user_results ur WHERE ur.user_id = u.id) as quiz_count
+            SELECT u.id, u.username, u.display_name, u.email, u.bio, u.role, u.organization, u.phone, u.created_at,
+                   (SELECT COUNT(*) FROM user_results ur WHERE ur.user_id = u.id) as quiz_count,
+                   (SELECT AVG(ur.correct_answers * 100.0 / ur.total_questions) FROM user_results ur WHERE ur.user_id = u.id AND ur.total_questions > 0) as avg_score,
+                   (SELECT MAX(ur.completed_at) FROM user_results ur WHERE ur.user_id = u.id) as last_active
             FROM users u ORDER BY u.created_at DESC
         ''').fetchall()
         
@@ -1175,8 +1303,16 @@ def list_users():
             'users': [{
                 'id': u['id'],
                 'username': u['username'],
+                'displayName': u['display_name'] or '',
+                'email': u['email'] or '',
+                'bio': u['bio'] or '',
+                'role': u['role'] or '',
+                'organization': u['organization'] or '',
+                'phone': u['phone'] or '',
                 'createdAt': u['created_at'],
-                'quizCount': u['quiz_count']
+                'quizCount': u['quiz_count'],
+                'avgScore': round(u['avg_score'], 1) if u['avg_score'] else 0,
+                'lastActive': u['last_active']
             } for u in users]
         })
     except Exception as e:
@@ -1193,6 +1329,74 @@ def delete_user(user_id):
         db.execute('DELETE FROM users WHERE id = ?', (user_id,))
         db.commit()
         return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+@require_admin
+def update_user(user_id):
+    """Admin: update any user's profile and username."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        db = get_db()
+        ensure_tables()
+        
+        user = db.execute('SELECT id FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        updates = []
+        params = []
+        
+        if 'username' in data:
+            username = data['username'].strip()
+            if not username or len(username) < 2 or len(username) > 30:
+                return jsonify({'success': False, 'error': 'Username must be 2-30 characters'}), 400
+            if not re.match(r'^[\w\s\-]+$', username):
+                return jsonify({'success': False, 'error': 'Username contains invalid characters'}), 400
+            existing = db.execute('SELECT id FROM users WHERE username = ? AND id != ?', (username, user_id)).fetchone()
+            if existing:
+                return jsonify({'success': False, 'error': 'Username already taken'}), 409
+            updates.append('username = ?')
+            params.append(username)
+        
+        if 'displayName' in data:
+            updates.append('display_name = ?')
+            params.append(data['displayName'].strip()[:50] or None)
+        if 'email' in data:
+            updates.append('email = ?')
+            params.append(data['email'].strip()[:100] or None)
+        if 'bio' in data:
+            updates.append('bio = ?')
+            params.append(data['bio'].strip()[:200] or None)
+        if 'role' in data:
+            updates.append('role = ?')
+            params.append(data['role'].strip()[:50] or None)
+        if 'organization' in data:
+            updates.append('organization = ?')
+            params.append(data['organization'].strip()[:100] or None)
+        if 'phone' in data:
+            updates.append('phone = ?')
+            params.append(data['phone'].strip()[:30] or None)
+        if 'password' in data and data['password']:
+            if len(data['password']) < 4:
+                return jsonify({'success': False, 'error': 'Password must be at least 4 characters'}), 400
+            updates.append('password_hash = ?')
+            params.append(hashlib.sha256(data['password'].encode()).hexdigest())
+        
+        if not updates:
+            return jsonify({'success': False, 'error': 'No fields to update'}), 400
+        
+        params.append(user_id)
+        db.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", params)
+        db.commit()
+        
+        return jsonify({'success': True})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'error': 'Username already taken'}), 409
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

@@ -204,8 +204,8 @@ const elements = {
     playAgainBtn: document.getElementById('playAgainBtn'),
     newGameBtn: document.getElementById('newGameBtn'),
     
-    // Game Header
-    gameHeader: document.getElementById('gameHeader'),
+    // Game Header (question counter in nav)
+    questionCounter: document.getElementById('questionCounter'),
     
     // Mode buttons
     singleModeBtn: document.getElementById('singleModeBtn'),
@@ -2957,6 +2957,35 @@ function initEventListeners() {
 }
 
 
+// ==================== APP TITLE RESOLUTION ====================
+function resolveAppTitle() {
+    // envsubst replaces ${APP_TITLE} at Docker build time.
+    // In dev mode the literal string remains — resolve it via /api/config.
+    const literal = '${APP_TITLE}';
+    const needsResolve = document.title.includes(literal) ||
+        document.querySelector('.welcome-title')?.textContent.includes(literal);
+    if (!needsResolve) return;
+
+    fetch('/api/config').then(r => r.ok ? r.json() : Promise.reject())
+        .then(cfg => {
+            const title = cfg.appTitle || 'Trivia Quest';
+            document.title = document.title.replace(literal, title);
+            document.querySelectorAll('.welcome-title, .quiz-auth-title, .game-title').forEach(el => {
+                if (el.textContent.includes(literal)) {
+                    el.textContent = el.textContent.replace(literal, title);
+                }
+            });
+        })
+        .catch(() => {
+            const fallback = 'Trivia Quest';
+            document.title = document.title.replace(literal, fallback);
+            document.querySelectorAll('.welcome-title, .quiz-auth-title, .game-title').forEach(el => {
+                if (el.textContent.includes(literal)) {
+                    el.textContent = el.textContent.replace(literal, fallback);
+                }
+            });
+        });
+}
 
 // ==================== INITIALIZATION ====================
 function init() {
@@ -3011,6 +3040,7 @@ function init() {
     initAccordion();
     initThemes(); // Initialize theme system
     initWelcomeScreen(); // Initialize welcome/setup screen
+    resolveAppTitle(); // Replace ${APP_TITLE} placeholders when not processed by envsubst
     updateTeamInputs();
     updateScoreboard();
     updateQuestionCounter();
@@ -3174,8 +3204,8 @@ function showGameScreen() {
     if (elements.gameOverScreen) {
         elements.gameOverScreen.classList.add('hidden');
     }
-    if (elements.gameHeader) {
-        elements.gameHeader.classList.remove('hidden');
+    if (elements.questionCounter) {
+        elements.questionCounter.classList.remove('hidden');
     }
     if (elements.singleMode && state.gameMode === 'single') {
         elements.singleMode.classList.remove('hidden');
@@ -3195,8 +3225,8 @@ function showWelcomeScreen() {
     if (elements.gameOverScreen) {
         elements.gameOverScreen.classList.add('hidden');
     }
-    if (elements.gameHeader) {
-        elements.gameHeader.classList.add('hidden');
+    if (elements.questionCounter) {
+        elements.questionCounter.classList.add('hidden');
     }
     if (elements.singleMode) {
         elements.singleMode.classList.add('hidden');
@@ -3217,8 +3247,8 @@ function showGameOverScreen() {
     if (elements.welcomeScreen) {
         elements.welcomeScreen.classList.add('hidden');
     }
-    if (elements.gameHeader) {
-        elements.gameHeader.classList.add('hidden');
+    if (elements.questionCounter) {
+        elements.questionCounter.classList.add('hidden');
     }
     if (elements.singleMode) {
         elements.singleMode.classList.add('hidden');

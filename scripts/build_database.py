@@ -102,7 +102,8 @@ def create_database(db_path: str) -> sqlite3.Connection:
             answered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
-            FOREIGN KEY (question_id) REFERENCES questions(id)
+            FOREIGN KEY (question_id) REFERENCES questions(id),
+            UNIQUE(user_id, session_id, question_id)
         );
 
         -- User quiz results summary
@@ -115,7 +116,8 @@ def create_database(db_path: str) -> sqlite3.Connection:
             total_time_seconds REAL,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE
+            FOREIGN KEY (session_id) REFERENCES quiz_sessions(id) ON DELETE CASCADE,
+            UNIQUE(user_id, session_id)
         );
 
         -- Indexes for quiz tables
@@ -126,6 +128,8 @@ def create_database(db_path: str) -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS idx_user_answers_session ON user_answers(session_id);
         CREATE INDEX IF NOT EXISTS idx_user_results_user ON user_results(user_id);
         CREATE INDEX IF NOT EXISTS idx_user_results_session ON user_results(session_id);
+        CREATE INDEX IF NOT EXISTS idx_user_answers_lookup ON user_answers(user_id, session_id, question_id);
+        CREATE INDEX IF NOT EXISTS idx_user_results_lookup ON user_results(user_id, session_id);
     ''')
     
     conn.commit()
