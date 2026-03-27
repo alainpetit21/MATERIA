@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-PROJECT_NAME="Trivia Quest"
+PROJECT_NAME="MATERIA"
 PROJECT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="docker-compose.yml"
 PORT=3002
