@@ -65,7 +65,7 @@ case "$ACTION" in
     *) echo "Usage: $0 [start|stop|restart|status]"; exit 1 ;;
 esac
 
-printf "\n${WHITE}=== Trivia Quest ===${NC}\n"
+printf "\n${WHITE}=== MATERIA ===${NC}\n"
 
 case "$ACTION" in
     start)

@@ -18,7 +18,7 @@ param(
     [string]$Action = "start"
 )
 
-$ProjectName = "Trivia Quest"
+$ProjectName = "MATERIA"
 $ProjectPath = $PSScriptRoot
 $ComposeFile = "docker-compose.yml"
 $Port        = 3002
@@ -64,7 +64,7 @@ function Show-Status {
 }
 
 # Execute
-Write-Host "`n=== Trivia Quest ===" -ForegroundColor White
+Write-Host "`n=== MATERIA ===" -ForegroundColor White
 
 switch ($Action) {
     "start" {
